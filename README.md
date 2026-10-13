@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cushqui
 
-## Getting Started
+App web y móvil para gestionar gastos diarios, cuentas y categorías. Hecha con Next.js 16, React 19 y Tailwind CSS 4, en modo oscuro.
 
-First, run the development server:
+## Puesta en marcha
+
+1. Arranca el backend de Cushqui en `http://localhost:3000`.
+2. Instala dependencias y arranca el frontend en otro puerto:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev -- -p 3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Abre http://localhost:3001 y regístrate.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+La URL de la API se configura en `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+```
 
-## Learn More
+## Pantallas
 
-To learn more about Next.js, take a look at the following resources:
+| Ruta                                                                        | Pantalla                                                                  |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `/login`, `/registro`                                                       | Acceso y registro (email y contraseña)                                    |
+| `/`                                                                         | Inicio: balance, gráfico por categoría y subcategoría, selector de cuenta |
+| `/transacciones`                                                            | Gastos, ingresos y movimientos por clasificar                             |
+| `/transacciones/nueva`, `/transacciones/[id]`, `/transacciones/[id]/editar` | Alta, detalle y edición, con "Dividir cuenta"                             |
+| `/cuentas`, `/cuentas/nueva`, `/cuentas/[id]`                               | Cuentas con icono, color y saldo                                          |
+| `/cuentas/transferencias`                                                   | Historial de transferencias                                               |
+| `/categorias`, `/categorias/nueva`, `/categorias/[id]`                      | Categorías y subcategorías                                                |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Decisiones a tener en cuenta
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Dividir cuenta.** Cada parte se redondea hacia arriba al céntimo. Si los céntimos acaban en 8 o 9, se sube a la décima siguiente: 6,4816 → 6,50, 9,98 → 10,00 y 9,456 → 9,46. El movimiento actual se queda con el resto. Las partes se marcan con `[Fraccionado i/n]` al final de la descripción y la app muestra una etiqueta "Fraccionado".
+- **Saldo de las cuentas.** Se calcula en el frontend como saldo inicial más ingresos, menos gastos, más o menos transferencias. El `currentBalance` de la API no es fiable tras editar una cuenta (ver abajo).
+- **Tipo de categoría.** La API no distingue categorías de gasto e ingreso. El tipo se guarda en el `localStorage` del navegador. Por defecto todas son de gasto, salvo nombres como "Nómina" o "Salario".
+- **Registro.** La API exige `name`. La app usa la parte del email anterior a la arroba.
+- **Iconos.** Se guardan como claves cortas (`utensils`, `card`, `bag`…), porque la API admite como máximo 10 caracteres. Los iconos emoji antiguos se traducen automáticamente.
 
-## Deploy on Vercel
+## Problema conocido del backend
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+En `UpdateAccountDto`, `PartialType(CreateAccountDto)` hereda el valor por defecto `initialBalance = 0`. Además, `AccountsService.update` copia `initialBalance` en `currentBalance`. Cualquier PATCH a una cuenta reinicia así el saldo y descarta los movimientos. La corrección en el backend sería quitar el valor por defecto del DTO de actualización y recalcular el saldo en lugar de sobrescribirlo.

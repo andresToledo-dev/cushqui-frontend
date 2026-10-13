@@ -1,0 +1,373 @@
+"use client";
+
+import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import { AppIcon } from "@/lib/icons";
+
+/* ---------- Icono con fondo de color ---------- */
+
+const SIZES = {
+  xs: { box: "size-8 rounded-lg", icon: "size-4" },
+  sm: { box: "size-10 rounded-xl", icon: "size-[18px]" },
+  md: { box: "size-12 rounded-2xl", icon: "size-5" },
+  lg: { box: "size-14 rounded-2xl", icon: "size-6" },
+  xl: { box: "size-16 rounded-[20px]", icon: "size-7" },
+};
+
+export function IconBadge({
+  icon,
+  color,
+  size = "md",
+  variant = "soft",
+  className = "",
+}: {
+  icon?: string | null;
+  color: string;
+  size?: keyof typeof SIZES;
+  variant?: "soft" | "gradient";
+  className?: string;
+}) {
+  const s = SIZES[size];
+  const style: CSSProperties =
+    variant === "gradient"
+      ? {
+          background: `linear-gradient(145deg, ${color}, color-mix(in srgb, ${color} 45%, #1b1b1f))`,
+          color: "#140d12",
+        }
+      : { background: `color-mix(in srgb, ${color} 16%, #0f0f12)`, color };
+  return (
+    <span className={`grid shrink-0 place-items-center ${s.box} ${className}`} style={style}>
+      <AppIcon iconKey={icon} className={s.icon} strokeWidth={1.8} />
+    </span>
+  );
+}
+
+/* ---------- Botones ---------- */
+
+type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger" };
+
+export function Button({ variant = "primary", className = "", ...props }: BtnProps) {
+  const styles = {
+    primary: "bg-cream text-ink hover:bg-white disabled:bg-surface-3 disabled:text-muted",
+    secondary: "bg-surface-2 text-cream hover:bg-surface-3 border border-line",
+    ghost: "text-muted hover:text-cream",
+    danger: "text-danger hover:bg-danger/10",
+  }[variant];
+  return (
+    <button
+      {...props}
+      className={`flex h-12 items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 ${styles} ${className}`}
+    />
+  );
+}
+
+export function Fab({ href = "/transacciones/nueva" }: { href?: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label="Nuevo movimiento"
+      className="fixed right-5 bottom-[calc(env(safe-area-inset-bottom,0px)+20px)] z-30 grid size-14 place-items-center rounded-full bg-fab text-ink shadow-lg shadow-fab/30 transition hover:scale-105 active:scale-95 lg:right-8 lg:bottom-8"
+    >
+      <Plus className="size-7" strokeWidth={2.2} />
+    </Link>
+  );
+}
+
+/* ---------- Pestañas segmentadas ---------- */
+
+export function Tabs<T extends string>({
+  value,
+  onChange,
+  options,
+  size = "md",
+  className = "",
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: ReactNode }[];
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  const index = Math.max(0, options.findIndex((o) => o.value === value));
+  return (
+    <div
+      role="tablist"
+      className={`relative grid rounded-2xl bg-surface p-1 ${className}`}
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
+      <span
+        aria-hidden
+        className="absolute top-1 bottom-1 left-1 rounded-xl bg-cream transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]"
+        style={{
+          width: `calc((100% - 0.5rem) / ${options.length})`,
+          transform: `translateX(${index * 100}%)`,
+        }}
+      />
+      {options.map((o) => (
+        <button
+          key={o.value}
+          role="tab"
+          aria-selected={o.value === value}
+          onClick={() => onChange(o.value)}
+          className={`relative z-10 flex items-center justify-center gap-2 rounded-xl font-medium transition-colors ${
+            size === "sm" ? "h-9 text-xs tracking-wide" : "h-11 text-sm"
+          } ${o.value === value ? "text-ink" : "text-muted hover:text-cream"}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Modal ---------- */
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  align = "center",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  children: ReactNode;
+  align?: "center" | "left";
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <div className="absolute inset-0 animate-fade-in bg-black/70 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative max-h-[88dvh] w-full animate-slide-up overflow-y-auto rounded-t-3xl border border-line bg-[#0e0e11] px-5 pt-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl sm:mx-4 sm:max-w-md sm:animate-pop-in sm:rounded-3xl sm:pb-6"
+      >
+        <button
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="absolute top-4 right-4 grid size-8 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-cream"
+        >
+          <X className="size-4.5" />
+        </button>
+        {(title || subtitle) && (
+          <div className={`mb-5 pr-8 ${align === "center" ? "pl-8 text-center" : ""}`}>
+            {title && <h2 className="font-display text-xl font-semibold">{title}</h2>}
+            {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function ConfirmModal({
+  open,
+  title,
+  message,
+  confirmLabel = "Eliminar",
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  message: ReactNode;
+  confirmLabel?: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal open={open} onClose={onClose} title={title} subtitle={message}>
+      <div className="grid grid-cols-2 gap-3">
+        <Button variant="secondary" onClick={onClose}>
+          Cancelar
+        </Button>
+        <Button className="bg-danger! text-ink!" disabled={busy} onClick={onConfirm}>
+          {busy ? "…" : confirmLabel}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Selector con icono ---------- */
+
+export interface SelectOption {
+  value: string;
+  label: string;
+  icon?: string;
+  color?: string;
+  hint?: string;
+  indent?: boolean;
+  gradient?: boolean;
+}
+
+export function SelectField({
+  value,
+  options,
+  onChange,
+  placeholder = "Seleccionar",
+  title,
+  disabled,
+  allowClear,
+}: {
+  value: string | null;
+  options: SelectOption[];
+  onChange: (v: string | null) => void;
+  placeholder?: string;
+  title: string;
+  disabled?: boolean;
+  allowClear?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+  return (
+    <>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="flex h-14 w-full items-center gap-3 rounded-2xl border border-line bg-surface px-3 text-left transition hover:border-surface-3 disabled:opacity-50"
+      >
+        {selected ? (
+          <>
+            {selected.icon && (
+              <IconBadge
+                icon={selected.icon}
+                color={selected.color ?? "#8d8d97"}
+                size="sm"
+                variant={selected.gradient ? "gradient" : "soft"}
+              />
+            )}
+            <span className="flex-1 truncate font-medium">{selected.label}</span>
+          </>
+        ) : (
+          <span className="flex-1 pl-1 text-muted">{placeholder}</span>
+        )}
+        <ChevronDown className="size-4 shrink-0 text-muted" />
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title={title} align="left">
+        <ul className="-mx-2 flex flex-col">
+          {allowClear && (
+            <li>
+              <button
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-muted hover:bg-surface"
+              >
+                Sin seleccionar
+              </button>
+            </li>
+          )}
+          {options.length === 0 && <li className="px-2 py-6 text-center text-sm text-muted">No hay opciones</li>}
+          {options.map((o) => (
+            <li key={o.value}>
+              <button
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-surface ${
+                  o.indent ? "pl-9" : ""
+                }`}
+              >
+                {o.icon && (
+                  <IconBadge
+                    icon={o.icon}
+                    color={o.color ?? "#8d8d97"}
+                    size={o.indent ? "xs" : "sm"}
+                    variant={o.gradient ? "gradient" : "soft"}
+                  />
+                )}
+                <span className={`flex-1 truncate ${o.indent ? "text-sm text-cream/85" : "font-medium"}`}>{o.label}</span>
+                {o.hint && <span className="num text-sm text-muted">{o.hint}</span>}
+                {o.value === value && <Check className="size-4 text-ok" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Modal>
+    </>
+  );
+}
+
+/* ---------- Cabeceras ---------- */
+
+export function BackHeader({
+  title,
+  backHref,
+  action,
+}: {
+  title: ReactNode;
+  backHref?: string;
+  action?: ReactNode;
+}) {
+  const router = useRouter();
+  return (
+    <div className="flex h-14 items-center gap-3">
+      <button
+        onClick={() => (backHref ? router.push(backHref) : router.back())}
+        aria-label="Volver"
+        className="-ml-2 grid size-10 place-items-center rounded-full text-cream/80 hover:bg-surface hover:text-cream"
+      >
+        <ArrowLeft className="size-5" />
+      </button>
+      <h1 className="flex-1 truncate text-[15px] font-semibold">{title}</h1>
+      {action}
+    </div>
+  );
+}
+
+export function SectionLabel({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <p className={`mb-2.5 text-[11px] font-semibold tracking-[0.08em] text-muted uppercase ${className}`}>{children}</p>;
+}
+
+export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`h-14 w-full rounded-2xl border border-line bg-surface px-4 text-[15px] text-cream placeholder:text-faint transition outline-none focus:border-cream/30 focus:bg-surface-2 ${props.className ?? ""}`}
+    />
+  );
+}
+
+export function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`inline-block size-5 animate-spin rounded-full border-2 border-surface-3 border-t-cream ${className}`}
+      aria-label="Cargando"
+    />
+  );
+}
+
+export function EmptyState({ icon, title, text }: { icon: ReactNode; title: string; text?: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-surface text-muted">{icon}</span>
+      <p className="font-semibold">{title}</p>
+      {text && <p className="max-w-xs text-sm text-muted">{text}</p>}
+    </div>
+  );
+}
