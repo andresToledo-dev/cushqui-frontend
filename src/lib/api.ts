@@ -11,12 +11,8 @@ import type {
   User,
 } from "./types";
 
-export const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ??
-  (typeof window !== "undefined"
-    ? `http://${window.location.hostname}:3000/api/v1`
-    : "http://localhost:3000/api/v1")
-).replace(/\/$/, "");
+// En local se usa la ruta relativa, que next.config.ts reenvía al backend (ver BACKEND_URL).
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "/api/v1").replace(/\/$/, "");
 
 const ACCESS_KEY = "cushqui.accessToken";
 const REFRESH_KEY = "cushqui.refreshToken";

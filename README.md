@@ -5,20 +5,42 @@ App web y móvil para gestionar gastos diarios, cuentas y categorías. Hecha con
 ## Puesta en marcha
 
 1. Arranca el backend de Cushqui en `http://localhost:3000`.
-2. Instala dependencias y arranca el frontend en otro puerto:
+2. Instala dependencias y arranca el frontend (puerto 3001):
 
 ```bash
 npm install
-npm run dev -- -p 3001
+npm run dev
 ```
 
 3. Abre http://localhost:3001 y regístrate.
 
-La URL de la API se configura en `.env.local`:
+En local no hace falta configurar la URL de la API. El navegador llama a `/api/v1` y Next la reenvía al backend (`BACKEND_URL`, por defecto `http://localhost:3000`). Ver `.env.example`.
+
+## Probar en el teléfono
+
+- **En el navegador:** con el teléfono en la misma Wi-Fi, abre `http://<IP-del-PC>:3001`. Next acepta automáticamente las IPs de la red local.
+- **Como app instalada (PWA):** instalar exige HTTPS. Instala cloudflared una vez (`winget install Cloudflare.cloudflared`) y, con `npm run dev` corriendo, ejecuta `npm run tunnel`. Abre en el teléfono la URL `https://….trycloudflare.com` que aparece y usa "Instalar app" o "Añadir a pantalla de inicio". Funciona con el backend local.
+- **Rendimiento real:** `npm run build && npm start`. El modo `dev` es bastante más lento.
+
+## Flujo de trabajo y despliegue
 
 ```
-NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+feature/* ──PR──▶ development ──PR──▶ main ──▶ Vercel (producción)
 ```
+
+1. Crea la rama desde `development`: `git checkout development && git pull && git checkout -b feature/x`.
+2. Prueba en local (ver arriba) y abre el PR: `gh pr create --base development`.
+3. Para publicar: `gh pr create --head development --base main`. Al hacer merge, Vercel despliega producción.
+
+- **CI** (`.github/workflows/ci.yml`): en cada PR a `development` o `main` ejecuta lint, typecheck y build.
+- **Despliegues** (`vercel.json`): solo `main` despliega. El resto de ramas no genera previews.
+- **Variables en Vercel** (entorno Production): `NEXT_PUBLIC_API_URL=https://<backend>/api/v1`. Con esta variable el navegador llama directamente al backend, que debe permitir el dominio de Vercel en CORS.
+
+## PWA
+
+- `src/app/manifest.ts`: nombre, colores y modo `standalone`, que abre la app sin la barra del navegador.
+- `src/lib/app-icon.tsx`: el icono se genera por código. Lo usan `src/app/icons/[name]/route.tsx` (192, 512 y maskable), `src/app/apple-icon.tsx` y `src/app/icon.tsx`.
+- No hay service worker: la app necesita conexión. Para modo offline se puede añadir [Serwist](https://github.com/serwist/serwist).
 
 ## Pantallas
 
