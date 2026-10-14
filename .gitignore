@@ -40,3 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# notas y mocks de trabajo (solo locales)
+Task.md
+mocks/

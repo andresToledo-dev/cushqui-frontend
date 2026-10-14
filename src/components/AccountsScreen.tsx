@@ -5,41 +5,49 @@ import Link from "next/link";
 import { useState } from "react";
 import { money } from "@/lib/format";
 import { useAccounts } from "@/lib/hooks";
-import { Screen } from "./AppShell";
+import { FixedScreen, SidebarToggle } from "./AppShell";
 import { TransferModal } from "./TransferModal";
 import { EmptyState, Fab, IconBadge, Spinner } from "./ui";
 
 export function AccountsScreen() {
-  const { accounts, total, isLoading } = useAccounts();
+  const { accounts, total, isLoading, loaded } = useAccounts();
   const [transfer, setTransfer] = useState(false);
 
   return (
     <>
-      <Screen>
-        <h1 className="-mt-7 text-center text-[15px] text-cream/70">Cuentas</h1>
-        <div className="mt-8 text-center">
-          <p className="text-[11px] font-semibold tracking-[0.1em] text-muted uppercase">Balance total</p>
-          <p className="num mt-1 text-[44px] leading-tight font-semibold">
-            {isLoading ? "—" : money(total)} <span className="text-lg font-medium text-muted">EUR</span>
-          </p>
-        </div>
+      <FixedScreen
+        toggle={false}
+        header={
+          <>
+            <div className="relative flex h-11 items-center justify-center">
+              <SidebarToggle className="absolute left-0" />
+              <h1 className="text-[15px] text-cream/70">Cuentas</h1>
+            </div>
+            <div className="mt-4 text-center">
+              <p className="text-[11px] font-semibold tracking-[0.1em] text-muted uppercase">Balance total</p>
+              <p className="num mt-1 text-[44px] leading-tight font-semibold">
+                {loaded ? money(total) : "—"} <span className="text-lg font-medium text-muted">EUR</span>
+              </p>
+            </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <Link
-            href="/cuentas/transferencias"
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface text-sm font-semibold transition hover:bg-surface-2"
-          >
-            <History className="size-4" /> Historial
-          </Link>
-          <button
-            onClick={() => setTransfer(true)}
-            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface text-sm font-semibold transition hover:bg-surface-2"
-          >
-            <ArrowLeftRight className="size-4" /> Nueva transferencia
-          </button>
-        </div>
-
-        <div className="mt-6 flex flex-col gap-2.5">
+            <div className="mt-5 grid grid-cols-2 gap-3 border-b border-line pb-4">
+              <Link
+                href="/cuentas/transferencias"
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface text-sm font-semibold transition hover:bg-surface-2"
+              >
+                <History className="size-4" /> Historial
+              </Link>
+              <button
+                onClick={() => setTransfer(true)}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-surface text-sm font-semibold transition hover:bg-surface-2"
+              >
+                <ArrowLeftRight className="size-4" /> Nueva transferencia
+              </button>
+            </div>
+          </>
+        }
+      >
+        <div className="mt-4 flex flex-col gap-2.5">
           {isLoading && accounts.length === 0 ? (
             <div className="grid place-items-center py-12">
               <Spinner />
@@ -74,7 +82,7 @@ export function AccountsScreen() {
         >
           <Plus className="size-4" /> Añadir cuenta
         </Link>
-      </Screen>
+      </FixedScreen>
       <Fab />
       <TransferModal open={transfer} onClose={() => setTransfer(false)} />
     </>

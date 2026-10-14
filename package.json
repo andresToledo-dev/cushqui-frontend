@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start -p 3001",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "tunnel": "cloudflared tunnel --url http://localhost:3001"
   },
   "dependencies": {
     "lucide-react": "^1.48.0",

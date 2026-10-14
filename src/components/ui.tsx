@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
@@ -158,7 +158,7 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative max-h-[88dvh] w-full animate-slide-up overflow-y-auto rounded-t-3xl border border-line bg-[#0e0e11] px-5 pt-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl sm:mx-4 sm:max-w-md sm:animate-pop-in sm:rounded-3xl sm:pb-6"
+        className="relative max-h-[88dvh] w-full animate-slide-up overflow-y-auto overscroll-none rounded-t-3xl border border-line bg-[#0e0e11] px-5 pt-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl sm:mx-4 sm:max-w-md sm:animate-pop-in sm:rounded-3xl sm:pb-6"
       >
         <button
           onClick={onClose}
@@ -220,6 +220,13 @@ export interface SelectOption {
   hint?: string;
   indent?: boolean;
   gradient?: boolean;
+  /** Grupo al que pertenece (p. ej. la categoría de una subcategoría). Se muestra al buscar. */
+  group?: string;
+}
+
+/** Minúsculas y sin tildes, para buscar "cafe" y encontrar "Cafés". */
+function normalize(text: string): string {
+  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
 }
 
 export function SelectField({
@@ -230,6 +237,8 @@ export function SelectField({
   title,
   disabled,
   allowClear,
+  searchable,
+  compact,
 }: {
   value: string | null;
   options: SelectOption[];
@@ -238,16 +247,36 @@ export function SelectField({
   title: string;
   disabled?: boolean;
   allowClear?: boolean;
+  /** Añade un buscador por nombre encima de la lista. */
+  searchable?: boolean;
+  /** Versión de 48 px de alto para formularios densos. */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const selected = options.find((o) => o.value === value);
+  const q = normalize(query);
+  const searching = searchable && q.length > 0;
+  const visible = searching
+    ? options.filter((o) => normalize(o.label).includes(q) || (o.group && normalize(o.group).includes(q)))
+    : options;
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+  };
+  const pick = (v: string | null) => {
+    onChange(v);
+    close();
+  };
   return (
     <>
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className="flex h-14 w-full items-center gap-3 rounded-2xl border border-line bg-surface px-3 text-left transition hover:border-surface-3 disabled:opacity-50"
+        className={`flex w-full items-center rounded-2xl border border-line bg-surface text-left transition hover:border-surface-3 disabled:opacity-50 ${
+          compact ? "h-12 gap-2 px-2" : "h-14 gap-3 px-3"
+        }`}
       >
         {selected ? (
           <>
@@ -255,42 +284,55 @@ export function SelectField({
               <IconBadge
                 icon={selected.icon}
                 color={selected.color ?? "#8d8d97"}
-                size="sm"
+                size={compact ? "xs" : "sm"}
                 variant={selected.gradient ? "gradient" : "soft"}
               />
             )}
             <span className="flex-1 truncate font-medium">{selected.label}</span>
           </>
         ) : (
-          <span className="flex-1 pl-1 text-muted">{placeholder}</span>
+          <span className="flex-1 truncate pl-1 text-muted">{placeholder}</span>
         )}
         <ChevronDown className="size-4 shrink-0 text-muted" />
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} title={title} align="left">
+      <Modal open={open} onClose={close} title={title} align="left">
+        {searchable && (
+          <div className="sticky -top-6 z-10 -mx-5 -mt-2 bg-[#0e0e11] px-5 pt-2 pb-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar por nombre"
+                aria-label={`Buscar ${title.toLowerCase()}`}
+                className="h-12 w-full rounded-2xl border border-line bg-surface pr-4 pl-10 text-base outline-none placeholder:text-faint focus:border-cream/30"
+              />
+            </div>
+          </div>
+        )}
         <ul className="-mx-2 flex flex-col">
-          {allowClear && (
+          {allowClear && !searching && (
             <li>
               <button
-                onClick={() => {
-                  onChange(null);
-                  setOpen(false);
-                }}
+                onClick={() => pick(null)}
                 className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-muted hover:bg-surface"
               >
                 Sin seleccionar
               </button>
             </li>
           )}
-          {options.length === 0 && <li className="px-2 py-6 text-center text-sm text-muted">No hay opciones</li>}
-          {options.map((o) => (
+          {visible.length === 0 && (
+            <li className="px-2 py-6 text-center text-sm text-muted">
+              {searching ? `Nada coincide con "${query.trim()}"` : "No hay opciones"}
+            </li>
+          )}
+          {visible.map((o) => (
             <li key={o.value}>
               <button
-                onClick={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                }}
+                onClick={() => pick(o.value)}
                 className={`flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition hover:bg-surface ${
-                  o.indent ? "pl-9" : ""
+                  o.indent && !searching ? "pl-9" : ""
                 }`}
               >
                 {o.icon && (
@@ -301,8 +343,14 @@ export function SelectField({
                     variant={o.gradient ? "gradient" : "soft"}
                   />
                 )}
-                <span className={`flex-1 truncate ${o.indent ? "text-sm text-cream/85" : "font-medium"}`}>{o.label}</span>
-                {o.hint && <span className="num text-sm text-muted">{o.hint}</span>}
+                <span className={`flex-1 truncate ${o.indent && !searching ? "text-sm text-cream/85" : "font-medium"}`}>
+                  {o.label}
+                </span>
+                {searching && o.group ? (
+                  <span className="truncate text-xs text-muted">{o.group}</span>
+                ) : (
+                  o.hint && <span className="num text-sm text-muted">{o.hint}</span>
+                )}
                 {o.value === value && <Check className="size-4 text-ok" />}
               </button>
             </li>
@@ -348,7 +396,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`h-14 w-full rounded-2xl border border-line bg-surface px-4 text-[15px] text-cream placeholder:text-faint transition outline-none focus:border-cream/30 focus:bg-surface-2 ${props.className ?? ""}`}
+      className={`h-14 w-full rounded-2xl border border-line bg-surface px-4 text-base text-cream placeholder:text-faint transition outline-none focus:border-cream/30 focus:bg-surface-2 ${props.className ?? ""}`}
     />
   );
 }

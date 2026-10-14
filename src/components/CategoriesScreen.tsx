@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCategories } from "@/lib/hooks";
 import type { CategoryKind } from "@/lib/types";
-import { Screen } from "./AppShell";
+import { FixedScreen, SidebarToggle } from "./AppShell";
 import { EmptyState, Fab, IconBadge, Spinner, Tabs } from "./ui";
 
 export function CategoriesScreen({ initialKind = "EXPENSE" }: { initialKind?: CategoryKind }) {
@@ -16,18 +16,27 @@ export function CategoriesScreen({ initialKind = "EXPENSE" }: { initialKind?: Ca
 
   return (
     <>
-      <Screen>
-        <h1 className="-mt-7 text-center text-[15px] text-cream/70">Categorías</h1>
-        <Tabs
-          size="sm"
-          className="mx-auto mt-8 max-w-xs"
-          value={kind}
-          onChange={setKind}
-          options={[
-            { value: "EXPENSE", label: "GASTOS" },
-            { value: "INCOME", label: "INGRESOS" },
-          ]}
-        />
+      <FixedScreen
+        toggle={false}
+        header={
+          <div className="border-b border-line pb-4">
+            <div className="relative flex h-11 items-center justify-center">
+              <SidebarToggle className="absolute left-0" />
+              <h1 className="text-[15px] text-cream/70">Categorías</h1>
+            </div>
+            <Tabs
+              size="sm"
+              className="mx-auto mt-4 max-w-xs"
+              value={kind}
+              onChange={setKind}
+              options={[
+                { value: "EXPENSE", label: "GASTOS" },
+                { value: "INCOME", label: "INGRESOS" },
+              ]}
+            />
+          </div>
+        }
+      >
 
         {isLoading && categories.length === 0 ? (
           <div className="grid place-items-center py-16">
@@ -40,7 +49,7 @@ export function CategoriesScreen({ initialKind = "EXPENSE" }: { initialKind?: Ca
             text="Crea una categoría para organizar tus movimientos."
           />
         ) : (
-          <ul className="mt-8 grid grid-cols-3 gap-x-2 gap-y-7 sm:grid-cols-4">
+          <ul className="mt-6 grid grid-cols-3 gap-x-2 gap-y-7 sm:grid-cols-4">
             {list.map((c) => (
               <li key={c.id}>
                 <Link
@@ -66,7 +75,7 @@ export function CategoriesScreen({ initialKind = "EXPENSE" }: { initialKind?: Ca
         >
           <Plus className="size-4" /> Añadir categoría
         </Link>
-      </Screen>
+      </FixedScreen>
       <Fab />
     </>
   );

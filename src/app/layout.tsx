@@ -9,12 +9,18 @@ const heading = Space_Grotesk({ variable: "--font-heading", subsets: ["latin"] }
 export const metadata: Metadata = {
   title: "Cushqui",
   description: "Gestiona tus gastos diarios, cuentas y categorías.",
+  applicationName: "Cushqui",
+  appleWebApp: { capable: true, title: "Cushqui", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
   themeColor: "#09090b",
   width: "device-width",
   initialScale: 1,
+  // Sin zoom: la app se usa como PWA y ampliar rompe el diseño móvil.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

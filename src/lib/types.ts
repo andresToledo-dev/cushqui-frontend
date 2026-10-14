@@ -1,4 +1,5 @@
-export type TxType = "EXPENSE" | "INCOME" | "TRANSFER";
+export type TxType = "EXPENSE" | "INCOME";
+export type MovementType = "OPENING" | "ADJUSTMENT" | "TRANSFER";
 export type TxStatus = "UNCLASSIFIED" | "CLASSIFIED";
 export type TxSource = "MANUAL" | "APPLE_PAY" | "MBWAY" | "REVOLUT" | "BANK" | "OTHER";
 export type AccountType = "BANK" | "CASH" | "CARD" | "WALLET" | "SAVINGS" | "OTHER";
@@ -20,8 +21,8 @@ export interface Account {
   name: string;
   type: AccountType;
   currency: string;
-  initialBalance: number;
-  currentBalance?: number;
+  /** Saldo actual. Lo mantiene el backend con cada gasto, ingreso, transferencia o ajuste. */
+  balance: number;
   isActive: boolean;
   icon?: string | null;
   color?: string | null;
@@ -32,6 +33,8 @@ export interface Account {
 export interface Category {
   id: string;
   name: string;
+  /** Gasto o ingreso. Las subcategorías heredan el de su categoría. */
+  type?: CategoryKind;
   icon?: string | null;
   color?: string | null;
   userId?: string | null;
@@ -42,9 +45,7 @@ export interface Category {
 export interface Transaction {
   id: string;
   accountId: string;
-  toAccountId?: string;
   accountName?: string;
-  toAccountName?: string;
   categoryId?: string;
   categoryName?: string;
   subcategoryId?: string;
@@ -94,4 +95,31 @@ export interface TxInput {
   categoryId?: string | null;
   subcategoryId?: string | null;
   transactionDate: string;
+}
+
+export interface Movement {
+  id: string;
+  type: MovementType;
+  /** OPENING y TRANSFER: positivo. ADJUSTMENT: con signo. */
+  amount: number;
+  currency: string;
+  /** Cuenta afectada. En una transferencia, la cuenta de origen. */
+  account: { id: string; name: string };
+  /** Solo en transferencias: cuenta de destino. */
+  toAccount?: { id: string; name: string };
+  balanceBefore?: number;
+  balanceAfter?: number;
+  note?: string;
+  movementDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MovementFilters {
+  accountId?: string;
+  type?: MovementType;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
 }

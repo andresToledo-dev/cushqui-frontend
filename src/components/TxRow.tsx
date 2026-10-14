@@ -2,34 +2,36 @@
 
 import { ChevronRight, Scissors } from "lucide-react";
 import Link from "next/link";
-import { money, signedMoney, splitInfo, timeLabel } from "@/lib/format";
+import { signedMoney, splitInfo, timeLabel } from "@/lib/format";
 import type { AccountView, CategoryView } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
 import type { Transaction } from "@/lib/types";
 import { IconBadge } from "./ui";
 
+/** Enlace por defecto: los movimientos sin clasificar se abren directamente en edición. */
+export function txHref(tx: Transaction): string {
+  return tx.status === "UNCLASSIFIED" ? `/transacciones/${tx.id}/editar` : `/transacciones/${tx.id}`;
+}
+
 export function TxRow({
   tx,
-  href,
+  href = txHref(tx),
   category,
   account,
 }: {
   tx: Transaction;
-  href: string;
+  href?: string;
   category?: CategoryView;
   account?: AccountView;
 }) {
-  const unclassified = tx.status === "UNCLASSIFIED" && tx.type !== "TRANSFER";
+  const unclassified = tx.status === "UNCLASSIFIED";
   const { text, total } = splitInfo(tx.description);
   const title = tx.merchant || text || category?.name || "Movimiento";
   const accountName = account?.name ?? tx.accountName ?? "Cuenta";
 
-  const subtitle =
-    tx.type === "TRANSFER"
-      ? `${tx.accountName ?? "Cuenta"} → ${tx.toAccountName ?? "Cuenta"}`
-      : unclassified
-        ? accountName
-        : [tx.categoryName ?? category?.name, tx.subcategoryName].filter(Boolean).join(" · ") || "Sin categoría";
+  const subtitle = unclassified
+    ? accountName
+    : [tx.categoryName ?? category?.name, tx.subcategoryName].filter(Boolean).join(" · ") || "Sin categoría";
 
   const meta = [timeLabel(tx.transactionDate), unclassified ? text || null : accountName].filter(Boolean).join(" · ");
 
@@ -40,8 +42,6 @@ export function TxRow({
     >
       {unclassified ? (
         <IconBadge icon="card" color={NEUTRAL} />
-      ) : tx.type === "TRANSFER" ? (
-        <IconBadge icon={account?.icon ?? "archive"} color={account?.color ?? NEUTRAL} />
       ) : (
         <IconBadge icon={category?.icon ?? "archive"} color={category?.color ?? NEUTRAL} />
       )}
@@ -58,8 +58,7 @@ export function TxRow({
         </p>
       </div>
       <p className={`num shrink-0 font-semibold ${tx.type === "INCOME" ? "text-ok" : ""}`}>
-        {tx.type === "TRANSFER" ? money(tx.amount) : signedMoney(tx.amount, tx.type)}{" "}
-        <span className="text-xs font-normal text-muted">EUR</span>
+        {signedMoney(tx.amount, tx.type)} <span className="text-xs font-normal text-muted">EUR</span>
       </p>
       <ChevronRight className="size-4 shrink-0 text-faint" />
     </Link>
