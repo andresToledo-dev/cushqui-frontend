@@ -181,12 +181,44 @@ function Sidebar() {
 /** Contenedor estándar de pantalla con scroll propio y botón de menú. */
 export function Screen({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-none">
       <div
         className={`mx-auto w-full max-w-xl px-4 pt-[calc(env(safe-area-inset-top,0px)+12px)] pb-28 sm:px-6 ${className}`}
       >
         <SidebarToggle />
         {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Pantalla con cabecera fija: solo el contenedor de la lista tiene scroll vertical.
+ * `header` incluye títulos, pestañas y filtros; `children` es la lista.
+ */
+export function FixedScreen({
+  header,
+  children,
+  toggle = true,
+  onListScroll,
+}: {
+  header: ReactNode;
+  children: ReactNode;
+  /** Muestra el botón del menú lateral (las pantallas de detalle usan su propio "volver"). */
+  toggle?: boolean;
+  onListScroll?: (top: number) => void;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mx-auto w-full max-w-xl shrink-0 px-4 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:px-6">
+        {toggle && <SidebarToggle />}
+        {header}
+      </div>
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-none"
+        onScroll={onListScroll ? (e) => onListScroll(e.currentTarget.scrollTop) : undefined}
+      >
+        <div className="mx-auto w-full max-w-xl px-4 pb-28 sm:px-6">{children}</div>
       </div>
     </div>
   );

@@ -161,6 +161,22 @@ export function normalizeIcon(icon?: string | null): string {
   return EMOJI_MAP[icon] ?? "archive";
 }
 
+/**
+ * Tono más claro de un color, para las subcategorías ("mismo color en degradado").
+ * Cada posición usa una mezcla distinta con blanco para que se distingan en el gráfico.
+ */
+export function subcategoryShade(hex: string, index: number): string {
+  const base = /^#[0-9a-f]{6}$/i.test(hex) ? hex : NEUTRAL;
+  const amount = 0.18 + (index % 5) * 0.12;
+  const channel = (i: number) => {
+    const c = parseInt(base.slice(i, i + 2), 16);
+    return Math.round(c + (255 - c) * amount)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
+}
+
 /** Normaliza colores con poco contraste o en formato raro. */
 export function safeColor(color?: string | null): string {
   if (!color || !/^#[0-9a-f]{6}$/i.test(color)) return NEUTRAL;

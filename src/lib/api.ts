@@ -2,7 +2,10 @@ import type {
   Account,
   AccountType,
   Category,
+  CategoryKind,
   Dashboard,
+  Movement,
+  MovementFilters,
   Paginated,
   Tokens,
   Transaction,
@@ -132,28 +135,14 @@ export interface AccountInput {
   name: string;
   type: AccountType;
   currency: string;
-  initialBalance: number;
+  /** Saldo con el que se abre la cuenta. Solo al crearla. */
+  balance: number;
   icon?: string;
   color?: string;
 }
 
-/**
- * Las versiones antiguas de la API rechazan icon y color en cuentas.
- * Si ocurre, se reintenta sin esos campos (se guardan solo en el navegador).
- */
-async function withoutUnsupported<B extends { icon?: string; color?: string }, T>(body: B, send: (b: B) => Promise<T>): Promise<T> {
-  try {
-    return await send(body);
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 400 && /(icon|color) should not exist/.test(e.message)) {
-      const rest = { ...body };
-      delete rest.icon;
-      delete rest.color;
-      return send(rest);
-    }
-    throw e;
-  }
-}
+/** Al editar no se puede tocar el saldo: se cambia con un ajuste (POST /accounts/:id/adjustments). */
+export type AccountUpdate = Partial<Omit<AccountInput, "balance">>;
 
 function qs(params: object): string {
   const sp = new URLSearchParams();
@@ -173,19 +162,22 @@ export const api = {
   me: () => request<User>("/auth/me"),
 
   accounts: () => request<Account[]>("/accounts"),
-  createAccount: (body: AccountInput) => withoutUnsupported(body, (b) => request<Account>("/accounts", { method: "POST", body: b })),
-  updateAccount: (id: string, body: Partial<AccountInput>) =>
-    withoutUnsupported(body, (b) => request<Account>(`/accounts/${id}`, { method: "PATCH", body: b })),
+  createAccount: (body: AccountInput) => request<Account>("/accounts", { method: "POST", body }),
+  updateAccount: (id: string, body: AccountUpdate) => request<Account>(`/accounts/${id}`, { method: "PATCH", body }),
+  /** Fija un nuevo saldo y deja constancia como movimiento ADJUSTMENT. */
+  adjustBalance: (id: string, body: { balance: number; note?: string; date?: string }) =>
+    request<Account>(`/accounts/${id}/adjustments`, { method: "POST", body }),
   deleteAccount: (id: string) => request<void>(`/accounts/${id}`, { method: "DELETE" }),
 
   categories: () => request<Category[]>("/categories"),
-  createCategory: (body: { name: string; icon?: string; color?: string }) =>
+  createCategory: (body: { name: string; type: CategoryKind; icon?: string; color?: string }) =>
     request<Category>("/categories", { method: "POST", body }),
-  updateCategory: (id: string, body: Partial<{ name: string; icon: string; color: string }>) =>
+  updateCategory: (id: string, body: Partial<{ name: string; type: CategoryKind; icon: string; color: string }>) =>
     request<Category>(`/categories/${id}`, { method: "PATCH", body }),
   deleteCategory: (id: string) => request<void>(`/categories/${id}`, { method: "DELETE" }),
-  createSubcategory: (parentCategoryId: string, name: string) =>
-    request<Category>("/categories/subcategories", { method: "POST", body: { name, parentCategoryId } }),
+  /** El color (#RRGGBB) lo elige la app: un tono degradado del de la categoría. */
+  createSubcategory: (parentCategoryId: string, name: string, color: string) =>
+    request<Category>("/categories/subcategories", { method: "POST", body: { name, parentCategoryId, color } }),
   updateSubcategory: (id: string, name: string) =>
     request<Category>(`/categories/subcategories/${id}`, { method: "PATCH", body: { name } }),
 
@@ -198,8 +190,23 @@ export const api = {
   classify: (id: string, categoryId: string) =>
     request<Transaction>(`/transactions/${id}/classify`, { method: "POST", body: { categoryId } }),
 
-  createTransfer: (body: { fromAccountId: string; toAccountId: string; amount: number; currency: string; date: string }) =>
-    request<{ transactionId: string }>("/transfers", { method: "POST", body }),
+  createTransfer: (body: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    currency: string;
+    date: string;
+    note?: string;
+  }) => request<{ movementId: string }>("/transfers", { method: "POST", body }),
+
+  /** Edita una transferencia (id del movimiento). El backend recalcula los saldos. */
+  updateTransfer: (
+    id: string,
+    body: Partial<{ fromAccountId: string; toAccountId: string; amount: number; currency: string; date: string; note: string }>,
+  ) => request<Movement>(`/transfers/${id}`, { method: "PATCH", body }),
+
+  /** Aperturas, ajustes y transferencias entre cuentas. */
+  movements: (f: MovementFilters = {}) => request<Paginated<Movement>>(`/movements${qs(f)}`),
 
   dashboard: () => request<Dashboard>("/dashboard"),
 

@@ -18,6 +18,9 @@ export const viewport: Viewport = {
   themeColor: "#09090b",
   width: "device-width",
   initialScale: 1,
+  // Sin zoom: la app se usa como PWA y ampliar rompe el diseño móvil.
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

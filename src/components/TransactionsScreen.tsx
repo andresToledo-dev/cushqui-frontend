@@ -6,16 +6,20 @@ import useSWRInfinite from "swr/infinite";
 import { api } from "@/lib/api";
 import { dayGroupKey, dayLabel } from "@/lib/format";
 import { useAccounts, useCategories, useUnclassifiedCount } from "@/lib/hooks";
+import { periodRange, type Period } from "@/lib/period";
+import { usePeriod } from "@/lib/period-store";
 import type { Paginated, Transaction, TxFilters } from "@/lib/types";
-import { Screen } from "./AppShell";
+import { FixedScreen, SidebarToggle } from "./AppShell";
+import { PeriodFilter } from "./PeriodFilter";
 import { TxRow } from "./TxRow";
 import { Button, EmptyState, Fab, Modal, SelectField, Spinner, Tabs } from "./ui";
 
 export type TxTab = "gastos" | "ingresos" | "clasificar";
 const PAGE = 30;
 
-function filtersFor(tab: TxTab, accountId: string | null): TxFilters {
-  const base: TxFilters = { accountId: accountId ?? undefined, limit: PAGE };
+function filtersFor(tab: TxTab, accountId: string | null, period: Period): TxFilters {
+  const { from, to } = periodRange(period);
+  const base: TxFilters = { accountId: accountId ?? undefined, limit: PAGE, from: from.toISOString(), to: to.toISOString() };
   if (tab === "clasificar") return { ...base, status: "UNCLASSIFIED" };
   return { ...base, status: "CLASSIFIED", type: tab === "gastos" ? "EXPENSE" : "INCOME" };
 }
@@ -25,10 +29,11 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
   const [accountId, setAccountId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const pending = useUnclassifiedCount();
+  const [period, setPeriod] = usePeriod();
   const { accounts, byId: accountsById } = useAccounts();
   const { byId: categoriesById } = useCategories();
 
-  const filters = filtersFor(tab, accountId);
+  const filters = filtersFor(tab, accountId, period);
   const { data, size, setSize, isLoading, isValidating } = useSWRInfinite<Paginated<Transaction>>(
     (index, prev) => {
       if (prev && index + 1 > prev.meta.totalPages) return null;
@@ -43,6 +48,7 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
   }, [data]);
   const totalPages = data?.[0]?.meta.totalPages ?? 1;
   const hasMore = size < totalPages;
+  const inPeriod = data?.[0]?.meta.total ?? items.length;
 
   const groups = useMemo(() => {
     const map = new Map<string, Transaction[]>();
@@ -57,63 +63,70 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
 
   return (
     <>
-      <Screen>
-        <div className="mt-5 flex items-end justify-between">
-          <div>
-            <p className="text-[11px] font-semibold tracking-[0.1em] text-muted uppercase">Actividad</p>
-            <h1 className="font-display text-[32px] leading-tight font-semibold">Transacciones</h1>
-          </div>
-          <button
-            onClick={() => setFilterOpen(true)}
-            aria-label="Filtrar"
-            className={`relative grid size-11 place-items-center rounded-xl transition hover:bg-surface ${
-              accountId ? "text-accent" : "text-cream/80"
-            }`}
-          >
-            <SlidersHorizontal className="size-5" />
-            {accountId && <span className="absolute top-2 right-2 size-2 rounded-full bg-accent" />}
-          </button>
-        </div>
+      <FixedScreen
+        toggle={false}
+        header={
+          <>
+            <div className="flex items-center gap-3">
+              <SidebarToggle />
+              <h1 className="flex-1 truncate font-display text-2xl font-semibold">Transacciones</h1>
+              <button
+                onClick={() => setFilterOpen(true)}
+                aria-label="Filtrar por cuenta"
+                className={`relative -mr-1 grid size-11 place-items-center rounded-xl transition hover:bg-surface ${
+                  accountId ? "text-accent" : "text-cream/80"
+                }`}
+              >
+                <SlidersHorizontal className="size-5" />
+                {accountId && <span className="absolute top-2 right-2 size-2 rounded-full bg-accent" />}
+              </button>
+            </div>
 
-        {filteredAccount && (
-          <button
-            onClick={() => setAccountId(null)}
-            className="mt-2 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs text-cream/80"
-          >
-            <span className="size-2 rounded-full" style={{ background: filteredAccount.color }} />
-            {filteredAccount.name} · quitar filtro ✕
-          </button>
-        )}
+            {filteredAccount && (
+              <button
+                onClick={() => setAccountId(null)}
+                className="mt-2 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1 text-xs text-cream/80"
+              >
+                <span className="size-2 rounded-full" style={{ background: filteredAccount.color }} />
+                {filteredAccount.name} · quitar filtro ✕
+              </button>
+            )}
 
-        <Tabs
-          className="mt-5"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "gastos", label: "Gastos" },
-            { value: "ingresos", label: "Ingresos" },
-            {
-              value: "clasificar",
-              label: (
-                <>
-                  Clasificar
-                  {pending > 0 && (
-                    <span className="grid min-w-5 place-items-center rounded-full bg-fab px-1.5 text-[11px] leading-5 font-bold text-ink">
-                      {pending}
-                    </span>
-                  )}
-                </>
-              ),
-            },
-          ]}
-        />
-
+            <Tabs
+              className="mt-4"
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: "gastos", label: "Gastos" },
+                { value: "ingresos", label: "Ingresos" },
+                {
+                  value: "clasificar",
+                  label: (
+                    <>
+                      Clasificar
+                      {pending > 0 && (
+                        <span className="grid min-w-5 place-items-center rounded-full bg-fab px-1.5 text-[11px] leading-5 font-bold text-ink">
+                          {pending}
+                        </span>
+                      )}
+                    </>
+                  ),
+                },
+              ]}
+            />
+            <PeriodFilter className="mt-3 border-b border-line pb-3" period={period} onChange={setPeriod} loading={isValidating && !!data} />
+          </>
+        }
+      >
         {tab === "clasificar" && items.length > 0 && (
-          <div className="mt-6 border-l-2 border-fab py-1 pl-4">
+          <div className="mt-4 border-l-2 border-fab py-1 pl-4">
             <p className="text-lg font-semibold">
-              {(pending || items.length) === 1 ? "Un movimiento espera categoría" : `${pending || items.length} movimientos esperan categoría`}
+              {inPeriod === 1 ? "Un movimiento espera categoría" : `${inPeriod} movimientos esperan categoría`}
             </p>
-            <p className="mt-0.5 text-sm text-muted">Selecciona uno para completar sus datos.</p>
+            <p className="mt-0.5 text-sm text-muted">
+              Selecciona uno para completar sus datos.
+              {pending > inPeriod && ` Hay ${pending} en total, cambia el periodo para ver el resto.`}
+            </p>
           </div>
         )}
 
@@ -125,11 +138,11 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
           ) : items.length === 0 ? (
             <EmptyState
               icon={<Inbox className="size-6" />}
-              title={tab === "clasificar" ? "Todo clasificado" : "Sin movimientos"}
+              title={tab === "clasificar" ? "Nada por clasificar en este periodo" : "Sin movimientos en este periodo"}
               text={
                 tab === "clasificar"
-                  ? "No hay movimientos pendientes de categoría."
-                  : "Cuando registres movimientos aparecerán aquí agrupados por fecha."
+                  ? "Cambia el periodo para ver otros movimientos pendientes."
+                  : "Cambia el periodo o registra un movimiento con el botón +."
               }
             />
           ) : (
@@ -146,8 +159,7 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
                     <TxRow
                       key={t.id}
                       tx={t}
-                      href={t.status === "UNCLASSIFIED" ? `/transacciones/${t.id}/editar` : `/transacciones/${t.id}`}
-                      category={t.categoryId ? categoriesById.get(t.categoryId) : undefined}
+                                            category={t.categoryId ? categoriesById.get(t.categoryId) : undefined}
                       account={accountsById.get(t.accountId)}
                     />
                   ))}
@@ -162,7 +174,7 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
             </Button>
           )}
         </div>
-      </Screen>
+      </FixedScreen>
       <Fab />
 
       <Modal open={filterOpen} onClose={() => setFilterOpen(false)} title="Filtrar" align="left">

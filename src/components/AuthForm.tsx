@@ -55,7 +55,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-5 py-10">
+    <main className="flex h-dvh items-center justify-center overflow-hidden overscroll-none px-5 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
       <form onSubmit={submit} className="w-full max-w-sm animate-pop-in">
         <div className="mb-9 flex flex-col items-center text-center">
           <span className="mb-5 grid size-12 place-items-center rounded-2xl bg-cream font-display text-xl font-bold text-ink">

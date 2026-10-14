@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { refreshAll, useCategories, type CategoryView } from "@/lib/hooks";
-import { COLORS } from "@/lib/icons";
-import { setCategoryKind } from "@/lib/meta";
+import { COLORS, subcategoryShade } from "@/lib/icons";
 import type { CategoryKind } from "@/lib/types";
 import { Screen } from "./AppShell";
 import { ColorPicker, IconPicker } from "./IconColorPicker";
@@ -16,7 +15,18 @@ import { BackHeader, Button, ConfirmModal, IconBadge, Input, Modal, SectionLabel
 interface SubItem {
   id: string;
   name: string;
+  /** Tono degradado del color de la categoría. */
+  color: string;
   pending?: boolean;
+}
+
+/** Traduce los errores de la API sobre categorías. */
+function categoryError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : "";
+  const used = msg.match(/used by (\d+) transactions/);
+  if (used) return `No se puede cambiar el tipo: la categoría tiene ${used[1]} movimientos.`;
+  if (/global categories/i.test(msg)) return "Las categorías predeterminadas no se pueden modificar.";
+  return msg || "No se pudo guardar";
 }
 
 export function CategoryForm({ id, initialKind = "EXPENSE" }: { id?: string; initialKind?: CategoryKind }) {
@@ -59,7 +69,12 @@ function Body({ category, initialKind }: { category?: CategoryView; initialKind:
   const [deleteSub, setDeleteSub] = useState<SubItem | null>(null);
   const [deleteCat, setDeleteCat] = useState(false);
 
-  const subs: SubItem[] = category ? category.subcategories.map((s) => ({ id: s.id, name: s.name })) : pendingSubs;
+  // Las predeterminadas (sin userId) no se pueden editar, pero sí admiten subcategorías propias.
+  const readOnly = !!category && !category.userId;
+  const subs: SubItem[] = category
+    ? category.subcategories.map((s) => ({ id: s.id, name: s.name, color: s.color }))
+    : pendingSubs.map((s, i) => ({ ...s, color: subcategoryShade(color, i) }));
+  const nextShade = () => subcategoryShade(category?.color ?? color, subs.length);
   const kindLabel = kind === "INCOME" ? "Ingreso" : "Gasto";
   const backHref = `/categorias?tipo=${kind === "INCOME" ? "ingresos" : "gastos"}`;
 
@@ -70,7 +85,7 @@ function Body({ category, initialKind }: { category?: CategoryView; initialKind:
       setPendingSubs((xs) =>
         subModal.id
           ? xs.map((x) => (x.id === subModal.id ? { ...x, name: subName } : x))
-          : [...xs, { id: `tmp-${Date.now()}`, name: subName, pending: true }],
+          : [...xs, { id: `tmp-${Date.now()}`, name: subName, color: "", pending: true }],
       );
       setSubModal(null);
       return;
@@ -78,12 +93,12 @@ function Body({ category, initialKind }: { category?: CategoryView; initialKind:
     setBusy(true);
     try {
       if (subModal.id) await api.updateSubcategory(subModal.id, subName);
-      else await api.createSubcategory(category.id, subName);
+      else await api.createSubcategory(category.id, subName, nextShade());
       await refreshAll();
       toast(subModal.id ? "Subcategoría actualizada" : "Subcategoría añadida");
       setSubModal(null);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo guardar", "error");
+      toast(categoryError(e), "error");
     } finally {
       setBusy(false);
     }
@@ -114,14 +129,15 @@ function Body({ category, initialKind }: { category?: CategoryView; initialKind:
     setBusy(true);
     try {
       const body = { name: name.trim(), icon, color };
-      const saved = category ? await api.updateCategory(category.id, body) : await api.createCategory(body);
-      setCategoryKind(saved.id, kind);
-      for (const s of pendingSubs) await api.createSubcategory(saved.id, s.name);
+      const saved = category
+        ? await api.updateCategory(category.id, { ...body, ...(kind !== category.kind && { type: kind }) })
+        : await api.createCategory({ ...body, type: kind });
+      for (const [i, s] of pendingSubs.entries()) await api.createSubcategory(saved.id, s.name, subcategoryShade(color, i));
       await refreshAll();
       toast(category ? "Categoría actualizada" : "Categoría creada");
       router.replace(backHref);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo guardar", "error");
+      toast(categoryError(e), "error");
       setBusy(false);
     }
   };
@@ -153,31 +169,39 @@ function Body({ category, initialKind }: { category?: CategoryView; initialKind:
           placeholder="Nombre de la categoría"
           aria-label="Nombre de la categoría"
           autoFocus={!category}
-          className="text-[17px]"
+          disabled={readOnly}
+          className="text-[17px] disabled:opacity-60"
         />
       </div>
 
-      {category && !category.userId && (
+      {readOnly && (
         <p className="mt-3 rounded-xl bg-surface px-3 py-2 text-xs text-muted">
-          Es una categoría predeterminada. Puede que el servidor no permita modificarla.
+          Es una categoría predeterminada: no se puede modificar, pero puedes añadirle tus propias subcategorías.
         </p>
       )}
 
       <div className="mt-7 flex flex-col gap-7">
-        <div>
-          <SectionLabel>Tipo</SectionLabel>
-          <Tabs
-            size="sm"
-            value={kind}
-            onChange={setKind}
-            options={[
-              { value: "EXPENSE", label: "Gasto" },
-              { value: "INCOME", label: "Ingreso" },
-            ]}
-          />
-        </div>
-        <IconPicker value={icon} color={color} onChange={setIcon} />
-        <ColorPicker value={color} onChange={setColor} />
+        {!readOnly && (
+          <>
+            <div>
+              <SectionLabel>Tipo</SectionLabel>
+              <Tabs
+                size="sm"
+                value={kind}
+                onChange={setKind}
+                options={[
+                  { value: "EXPENSE", label: "Gasto" },
+                  { value: "INCOME", label: "Ingreso" },
+                ]}
+              />
+              {category && category.subcategories.length > 0 && (
+                <p className="mt-2 px-1 text-xs text-faint">Las subcategorías cambian de tipo con la categoría.</p>
+              )}
+            </div>
+            <IconPicker value={icon} color={color} onChange={setIcon} />
+            <ColorPicker value={color} onChange={setColor} />
+          </>
+        )}
 
         <div>
           <div className="mb-2.5 flex items-center justify-between">
@@ -195,7 +219,7 @@ function Body({ category, initialKind }: { category?: CategoryView; initialKind:
             <ul className="flex flex-col gap-2">
               {subs.map((s) => (
                 <li key={s.id} className="flex items-center gap-3 rounded-2xl bg-surface py-2.5 pr-2 pl-3">
-                  <IconBadge icon={icon} color={color} size="sm" variant="gradient" />
+                  <IconBadge icon={icon} color={s.color} size="sm" variant="gradient" />
                   <span className="flex-1 truncate font-medium">{s.name}</span>
                   <button
                     onClick={() => setSubModal({ id: s.id, name: s.name })}
@@ -218,10 +242,12 @@ function Body({ category, initialKind }: { category?: CategoryView; initialKind:
         </div>
       </div>
 
-      <Button className="mt-8 w-full" onClick={save} disabled={busy || !name.trim()}>
-        {busy ? "Guardando…" : "Guardar categoría"}
-      </Button>
-      {category && (
+      {!readOnly && (
+        <Button className="mt-8 w-full" onClick={save} disabled={busy || !name.trim()}>
+          {busy ? "Guardando…" : "Guardar categoría"}
+        </Button>
+      )}
+      {category && !readOnly && (
         <button
           onClick={() => setDeleteCat(true)}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-medium text-danger transition hover:bg-danger/10"

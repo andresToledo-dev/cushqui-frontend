@@ -50,6 +50,17 @@ html,
 body {
   background: var(--color-bg);
   color: var(--color-cream);
+  /* La página no se desplaza ni rebota: cada pantalla tiene su propio contenedor con scroll. */
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html {
+  /* Evita el zoom por doble toque sin bloquear el desplazamiento. */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {

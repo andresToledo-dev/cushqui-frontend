@@ -3,10 +3,9 @@
 import { useMemo } from "react";
 import useSWR, { mutate } from "swr";
 import { api } from "./api";
-import { round2 } from "./format";
 import { colorFor, defaultAccountIcon, knownIcon, normalizeIcon, safeColor } from "./icons";
 import { kindOf, useMeta } from "./meta";
-import type { Account, Category, CategoryKind, Transaction, TxFilters } from "./types";
+import type { Account, Category, CategoryKind, Movement, MovementFilters, TxFilters } from "./types";
 
 export interface AccountView extends Omit<Account, "icon" | "color"> {
   icon: string;
@@ -31,45 +30,34 @@ export function useMe() {
 }
 
 /**
- * Saldo de cada cuenta = saldo inicial + ingresos − gastos ± transferencias.
- * Se calcula aquí porque el `currentBalance` de la API se sobrescribe al editar una cuenta.
+ * El saldo viene del backend, que lo actualiza en cada gasto, ingreso, transferencia,
+ * ajuste o importación por integración. Tras una mutación, refreshAll() lo vuelve a pedir.
+ * Las importaciones llegan sin que la app haga nada, así que también se refresca
+ * periódicamente y al volver a la app.
  */
-function computeBalances(txs: Transaction[]): Map<string, number> {
-  const delta = new Map<string, number>();
-  const add = (id: string | undefined, v: number) => id && delta.set(id, (delta.get(id) ?? 0) + v);
-  for (const t of txs) {
-    if (t.type === "INCOME") add(t.accountId, t.amount);
-    else if (t.type === "EXPENSE") add(t.accountId, -t.amount);
-    else if (t.type === "TRANSFER") {
-      add(t.accountId, -t.amount);
-      add(t.toAccountId, t.amount);
-    }
-  }
-  return delta;
-}
-
 export function useAccounts() {
   const meta = useMeta();
-  const swr = useSWR("accounts", api.accounts);
-  const { data: allTxs } = useSWR("transactions-all-balances", () => api.allTransactions());
-  const accounts = useMemo<AccountView[]>(() => {
-    const delta = allTxs ? computeBalances(allTxs) : null;
-    return (swr.data ?? [])
-      .filter((a) => a.isActive !== false)
-      .map((a) => {
-        const m = meta.accounts[a.id];
-        const computed = delta ? round2((a.initialBalance ?? 0) + (delta.get(a.id) ?? 0)) : null;
-        return {
-          ...a,
-          icon: knownIcon(a.icon) ?? m?.icon ?? defaultAccountIcon(a.type),
-          color: (a.color && safeColor(a.color)) || m?.color || colorFor(a.id),
-          balance: computed ?? a.currentBalance ?? a.initialBalance ?? 0,
-        };
-      });
-  }, [swr.data, allTxs, meta]);
+  const swr = useSWR("accounts", api.accounts, { refreshInterval: 30_000 });
+  const accounts = useMemo<AccountView[]>(
+    () =>
+      (swr.data ?? [])
+        .filter((a) => a.isActive !== false)
+        .map((a) => {
+          const m = meta.accounts[a.id];
+          return {
+            ...a,
+            icon: knownIcon(a.icon) ?? m?.icon ?? defaultAccountIcon(a.type),
+            color: (a.color && safeColor(a.color)) || m?.color || colorFor(a.id),
+            balance: Number(a.balance ?? 0),
+          };
+        }),
+    [swr.data, meta],
+  );
   const total = useMemo(() => accounts.reduce((acc, a) => acc + a.balance, 0), [accounts]);
   const byId = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
-  return { ...swr, accounts, total, byId };
+  /** false hasta recibir las cuentas: así no se muestra un saldo 0 que no es real. */
+  const loaded = swr.data !== undefined;
+  return { ...swr, accounts, total, byId, loaded };
 }
 
 export function useCategories() {
@@ -79,9 +67,11 @@ export function useCategories() {
     const view = (c: Category, parent?: CategoryView): CategoryView => {
       const self: CategoryView = {
         ...c,
+        // Las subcategorías usan el icono de su categoría y su propio color (un tono degradado).
         icon: parent?.icon ?? normalizeIcon(c.icon),
-        color: parent?.color ?? safeColor(c.color),
-        kind: parent?.kind ?? kindOf(meta, c),
+        color: c.color && /^#[0-9a-f]{6}$/i.test(c.color) ? safeColor(c.color) : (parent?.color ?? safeColor(c.color)),
+        // El tipo viene de la API; el valor local solo cubre datos antiguos sin tipo.
+        kind: c.type ?? parent?.kind ?? kindOf(meta, c),
         subcategories: [],
       };
       self.subcategories = (c.subcategories ?? []).map((s) => view(s, self));
@@ -111,6 +101,21 @@ export function useTransaction(id: string | null) {
 }
 
 export function useUnclassifiedCount() {
-  const { data } = useSWR("unclassified-count", () => api.transactions({ status: "UNCLASSIFIED", limit: 1 }));
+  const { data } = useSWR("unclassified-count", () => api.transactions({ status: "UNCLASSIFIED", limit: 1 }), {
+    refreshInterval: 30_000,
+  });
   return data?.meta.total ?? 0;
+}
+
+/** Todos los movimientos de cuenta que cumplen el filtro (recorre las páginas). */
+export function useMovements(filters: MovementFilters) {
+  return useSWR(["movements", JSON.stringify(filters)], async () => {
+    const out: Movement[] = [];
+    for (let page = 1; page <= 20; page++) {
+      const res = await api.movements({ ...filters, page, limit: 100 });
+      out.push(...res.data);
+      if (page >= res.meta.totalPages) break;
+    }
+    return out;
+  });
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
-import { dateTimeLabel, money, signedMoney, splitInfo } from "@/lib/format";
+import { dateTimeLabel, signedMoney, splitInfo } from "@/lib/format";
 import { refreshAll, useAccounts, useCategories, useTransaction } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
 import { Screen } from "./AppShell";
@@ -42,7 +42,6 @@ export function TransactionDetail({ id }: { id: string }) {
   const category = tx.categoryId ? categoriesById.get(tx.categoryId) : undefined;
   const account = accountsById.get(tx.accountId);
   const { text, part, total } = splitInfo(tx.description);
-  const isTransfer = tx.type === "TRANSFER";
 
   const remove = async () => {
     setBusy(true);
@@ -62,26 +61,24 @@ export function TransactionDetail({ id }: { id: string }) {
       <BackHeader
         title={<span className="block text-center">Detalle</span>}
         action={
-          !isTransfer && (
-            <Link
-              href={`/transacciones/${tx.id}/editar`}
-              aria-label="Editar"
-              className="-mr-2 grid size-10 place-items-center rounded-full text-accent hover:bg-surface"
-            >
-              <Pencil className="size-5" />
-            </Link>
-          )
+          <Link
+            href={`/transacciones/${tx.id}/editar`}
+            aria-label="Editar"
+            className="-mr-2 grid size-10 place-items-center rounded-full text-accent hover:bg-surface"
+          >
+            <Pencil className="size-5" />
+          </Link>
         }
       />
 
       <div className="mt-6 flex flex-col items-center text-center">
         <IconBadge
-          icon={isTransfer ? (account?.icon ?? "archive") : (category?.icon ?? "card")}
-          color={isTransfer ? (account?.color ?? NEUTRAL) : (category?.color ?? NEUTRAL)}
+          icon={category?.icon ?? "card"}
+          color={category?.color ?? NEUTRAL}
           size="xl"
         />
         <p className={`num mt-4 text-5xl font-semibold ${tx.type === "INCOME" ? "text-ok" : ""}`}>
-          {isTransfer ? money(tx.amount) : signedMoney(tx.amount, tx.type)}
+          {signedMoney(tx.amount, tx.type)}
           <span className="ml-2 text-xl font-medium text-muted">EUR</span>
         </p>
         <p className="mt-2 text-sm text-cream/70">{tx.merchant || text || category?.name || "Movimiento"}</p>
@@ -90,24 +87,15 @@ export function TransactionDetail({ id }: { id: string }) {
             <Scissors className="size-3.5" /> Fraccionado · parte {part} de {total}
           </span>
         )}
-        {tx.status === "UNCLASSIFIED" && !isTransfer && (
+        {tx.status === "UNCLASSIFIED" && (
           <span className="mt-3 rounded-full bg-fab/10 px-3 py-1 text-xs font-semibold text-fab">Pendiente de clasificar</span>
         )}
       </div>
 
       <dl className="mt-8 divide-y divide-line border-y border-line">
-        {isTransfer ? (
-          <>
-            <Row icon={<Wallet />} label="Desde" value={tx.accountName ?? "—"} />
-            <Row icon={<Wallet />} label="Hacia" value={tx.toAccountName ?? "—"} />
-          </>
-        ) : (
-          <>
-            <Row icon={<Wallet />} label="Cuenta" value={account?.name ?? tx.accountName ?? "—"} />
-            <Row icon={<Tag />} label="Categoría" value={tx.categoryName ?? category?.name ?? "Sin categoría"} />
-            <Row icon={<Layers />} label="Subcategoría" value={tx.subcategoryName ?? "—"} />
-          </>
-        )}
+        <Row icon={<Wallet />} label="Cuenta" value={account?.name ?? tx.accountName ?? "—"} />
+        <Row icon={<Tag />} label="Categoría" value={tx.categoryName ?? category?.name ?? "Sin categoría"} />
+        <Row icon={<Layers />} label="Subcategoría" value={tx.subcategoryName ?? "—"} />
         <Row icon={<Calendar />} label="Fecha" value={dateTimeLabel(tx.transactionDate)} />
       </dl>
 

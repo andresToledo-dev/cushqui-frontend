@@ -44,7 +44,7 @@ function Body({ account }: { account?: AccountView }) {
   const [name, setName] = useState(account?.name ?? "");
   const [icon, setIcon] = useState(account?.icon ?? "banknote");
   const [color, setColor] = useState(account?.color ?? COLORS[3]);
-  const [initial, setInitial] = useState(account ? money(account.initialBalance) : "");
+  const [balanceText, setBalanceText] = useState(account ? money(account.balance) : "");
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
 
@@ -52,18 +52,24 @@ function Body({ account }: { account?: AccountView }) {
     if (!name.trim()) return;
     setBusy(true);
     try {
-      const initialBalance = Math.round(parseAmount(initial) * 100) / 100;
-      const saved = account
-        ? // Se reenvía siempre el saldo inicial: la API lo pone a 0 si se omite.
-          await api.updateAccount(account.id, { name: name.trim(), initialBalance, icon, color })
-        : await api.createAccount({
-            name: name.trim(),
-            type: accountTypeForIcon(icon),
-            currency: "EUR",
-            initialBalance,
-            icon,
-            color,
-          });
+      const balance = Math.round(parseAmount(balanceText) * 100) / 100;
+      let saved;
+      if (account) {
+        saved = await api.updateAccount(account.id, { name: name.trim(), icon, color });
+        // El saldo no se edita directamente: se registra un ajuste con el saldo nuevo.
+        if (balance !== account.balance) {
+          await api.adjustBalance(account.id, { balance, note: "Ajuste manual desde la app" });
+        }
+      } else {
+        saved = await api.createAccount({
+          name: name.trim(),
+          type: accountTypeForIcon(icon),
+          currency: "EUR",
+          balance,
+          icon,
+          color,
+        });
+      }
       setAccountMeta(saved.id, { icon, color });
       await refreshAll();
       toast(account ? "Cuenta actualizada" : "Cuenta creada");
@@ -109,20 +115,20 @@ function Body({ account }: { account?: AccountView }) {
         <IconPicker value={icon} color={color} onChange={setIcon} />
         <ColorPicker value={color} onChange={setColor} />
         <div>
-          <SectionLabel>Saldo inicial</SectionLabel>
+          <SectionLabel>{account ? "Saldo actual" : "Saldo inicial"}</SectionLabel>
           <div className="relative">
             <Input
               inputMode="decimal"
               placeholder="0,00"
-              value={initial}
-              onChange={(e) => setInitial(e.target.value.replace(/[^\d.,-]/g, ""))}
+              value={balanceText}
+              onChange={(e) => setBalanceText(e.target.value.replace(/[^\d.,-]/g, ""))}
               className="num pr-14"
             />
             <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm text-muted">EUR</span>
           </div>
           {account && (
             <p className="mt-2 px-1 text-xs text-faint">
-              Balance actual: <span className="num text-cream/70">{money(account.balance)} EUR</span>
+              Si lo cambias se guarda como un ajuste en el historial de la cuenta.
             </p>
           )}
         </div>
