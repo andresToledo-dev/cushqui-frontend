@@ -14,7 +14,7 @@ npm run dev
 
 3. Abre http://localhost:3001 y regístrate.
 
-En local no hace falta configurar la URL de la API. El navegador llama a `/api/v1` y Next la reenvía al backend (`BACKEND_URL`, por defecto `http://localhost:3000`). Ver `.env.example`.
+No hace falta configurar la URL de la API. El navegador llama a `/api/v1` y Next la reenvía al backend (`BACKEND_URL`, por defecto `http://localhost:3000`). En producción funciona igual. Ver `.env.example`.
 
 ## Probar en el teléfono
 
@@ -25,16 +25,19 @@ En local no hace falta configurar la URL de la API. El navegador llama a `/api/v
 ## Flujo de trabajo y despliegue
 
 ```
-feature/* ──PR──▶ development ──PR──▶ main ──▶ Vercel (producción)
+feature/* ──PR──▶ main ──merge──▶ GitHub Actions ──▶ Vercel (producción)
 ```
 
-1. Crea la rama desde `development`: `git checkout development && git pull && git checkout -b feature/x`.
-2. Prueba en local (ver arriba) y abre el PR: `gh pr create --base development`.
-3. Para publicar: `gh pr create --head development --base main`. Al hacer merge, Vercel despliega producción.
+1. Crea la rama desde `main`: `git checkout main && git pull && git checkout -b feature/x`.
+2. Desarrolla y prueba en local, contra tu backend y tu base de datos locales.
+3. Sube la rama y abre un PR hacia `main`. La CI ejecuta lint, typecheck y build.
+4. Al hacer merge del PR, el flujo **Deploy production** publica en Vercel.
 
-- **CI** (`.github/workflows/ci.yml`): en cada PR a `development` o `main` ejecuta lint, typecheck y build.
-- **Despliegues** (`vercel.json`): solo `main` despliega. El resto de ramas no genera previews.
-- **Variables en Vercel** (entorno Production): `NEXT_PUBLIC_API_URL=https://<backend>/api/v1`. Con esta variable el navegador llama directamente al backend, que debe permitir el dominio de Vercel en CORS.
+- **CI** (`.github/workflows/ci.yml`): en cada PR a `main` ejecuta lint, typecheck y build.
+- **Despliegue** (`.github/workflows/deploy-prod.yml`): solo cuando se fusiona un PR en `main`. Un push directo a `main` no despliega. Desde la pestaña Actions se puede repetir a mano con "Run workflow".
+- **Vercel** (`vercel.json`): los despliegues automáticos por Git están desactivados; solo despliega el flujo anterior.
+- **Secretos** (GitHub → Settings → Environments → `production`): `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`.
+- **Variables en Vercel** (proyecto `cushqui-frontend`, entorno Production): `BACKEND_URL=https://cushqui-backend.vercel.app`. El navegador llama a `/api/v1` en el propio dominio y Vercel lo reenvía al backend, así que no hace falta tocar el CORS del backend.
 
 ## PWA
 
