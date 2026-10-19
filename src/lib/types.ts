@@ -123,3 +123,21 @@ export interface MovementFilters {
   page?: number;
   limit?: number;
 }
+
+export type IntegrationType = "SHORTCUT" | "MANUAL";
+
+/** Token con el que un atajo (o un envío manual) crea import events. */
+export interface Integration {
+  id: string;
+  name: string;
+  type: IntegrationType;
+  accountId?: string | null;
+  isActive: boolean;
+  lastUsedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Import events recibidos con esta integración. */
+  importEventsCount?: number;
+  /** Solo al crearla: el backend no lo vuelve a devolver. */
+  plainToken?: string;
+}

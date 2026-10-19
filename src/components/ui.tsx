@@ -237,6 +237,7 @@ export function SelectField({
   title,
   disabled,
   allowClear,
+  clearLabel = "Sin seleccionar",
   searchable,
   compact,
 }: {
@@ -247,6 +248,8 @@ export function SelectField({
   title: string;
   disabled?: boolean;
   allowClear?: boolean;
+  /** Texto de la opción que deja el campo vacío. */
+  clearLabel?: string;
   /** Añade un buscador por nombre encima de la lista. */
   searchable?: boolean;
   /** Versión de 48 px de alto para formularios densos. */
@@ -318,7 +321,7 @@ export function SelectField({
                 onClick={() => pick(null)}
                 className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-muted hover:bg-surface"
               >
-                Sin seleccionar
+                {clearLabel}
               </button>
             </li>
           )}
