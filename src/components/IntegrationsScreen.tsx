@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clock, Copy, KeyRound, Plug, Plus, Smartphone, Trash2, TriangleAlert } from "lucide-react";
+import { Bell, Check, Clock, Copy, KeyRound, Plug, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { dateTimeLabel } from "@/lib/format";
@@ -10,8 +10,8 @@ import { FixedScreen, SidebarToggle } from "./AppShell";
 import { useToast } from "./Toast";
 import { Button, ConfirmModal, EmptyState, IconBadge, Input, Modal, SectionLabel, SelectField, Spinner, Tabs } from "./ui";
 
-const TYPE_LABEL: Record<IntegrationType, string> = { SHORTCUT: "Atajo", MANUAL: "Manual" };
-const SHORTCUT_EXAMPLE = "Has enviado 1€ a John Doe. Llegara en segundo";
+const TYPE_LABEL: Record<IntegrationType, string> = { NOTIFICATION: "Notificación", MANUAL: "Manual" };
+const NOTIFICATION_EXAMPLE = "Has enviado 1€ a John Doe. Llegara en segundo";
 
 export function IntegrationsScreen() {
   const { data, isLoading } = useIntegrations();
@@ -54,7 +54,7 @@ export function IntegrationsScreen() {
             <EmptyState
               icon={<Plug className="size-6" />}
               title="Aún no tienes integraciones"
-              text="Crea una para que un atajo de iOS o un envío manual registre tus movimientos."
+              text="Crea una para que las notificaciones de tu banco o un envío manual registren tus movimientos."
             />
           ) : (
             integrations.map((i) => <IntegrationRow key={i.id} integration={i} onDelete={() => setRemoving(i)} />)
@@ -80,8 +80,8 @@ function Stat({ label, value }: { label: string; value: number | string }) {
 function IntegrationRow({ integration: i, onDelete }: { integration: Integration; onDelete: () => void }) {
   const { byId } = useAccounts();
   const account = i.accountId ? byId.get(i.accountId) : undefined;
-  const shortcut = i.type === "SHORTCUT";
-  const Icon = shortcut ? Smartphone : KeyRound;
+  const notification = i.type === "NOTIFICATION";
+  const Icon = notification ? Bell : KeyRound;
   const count = i.importEventsCount ?? 0;
 
   return (
@@ -90,7 +90,7 @@ function IntegrationRow({ integration: i, onDelete }: { integration: Integration
       className={`flex items-center gap-2.5 rounded-2xl bg-surface py-3 pr-1.5 pl-3 ${i.isActive ? "" : "opacity-50"}`}
     >
       <span
-        className={`grid size-10 shrink-0 place-items-center rounded-xl ${shortcut ? "bg-accent/15 text-accent" : "bg-fab/15 text-fab"}`}
+        className={`grid size-10 shrink-0 place-items-center rounded-xl ${notification ? "bg-accent/15 text-accent" : "bg-fab/15 text-fab"}`}
       >
         <Icon className="size-[18px]" strokeWidth={1.8} />
       </span>
@@ -99,7 +99,7 @@ function IntegrationRow({ integration: i, onDelete }: { integration: Integration
           <span className="truncate font-medium">{i.name}</span>
           <span
             className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
-              shortcut ? "bg-accent/15 text-accent" : "bg-fab/15 text-fab"
+              notification ? "bg-accent/15 text-accent" : "bg-fab/15 text-fab"
             }`}
           >
             {TYPE_LABEL[i.type]}
@@ -150,7 +150,7 @@ function CreateIntegrationModal({ open, onClose }: { open: boolean; onClose: () 
 function CreateBody({ onClose }: { onClose: () => void }) {
   const toast = useToast();
   const { accounts, byId } = useAccounts();
-  const [type, setType] = useState<IntegrationType>("SHORTCUT");
+  const [type, setType] = useState<IntegrationType>("NOTIFICATION");
   const [accountId, setAccountId] = useState<string | null>(null);
   const [customName, setCustomName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -160,11 +160,11 @@ function CreateBody({ onClose }: { onClose: () => void }) {
   const accountName = accountId ? byId.get(accountId)?.name : undefined;
   // El nombre sigue al tipo y la cuenta hasta que el usuario lo edita.
   const name = customName ?? (accountName ? `${TYPE_LABEL[type]} · ${accountName}` : TYPE_LABEL[type]);
-  const needsAccount = type === "SHORTCUT" && !accountId;
+  const needsAccount = type === "NOTIFICATION" && !accountId;
 
   const submit = async () => {
     if (needsAccount) {
-      setError("Un atajo necesita una cuenta: los movimientos se registran en ella.");
+      setError("Una integración de notificación necesita una cuenta: los movimientos se registran en ella.");
       return;
     }
     if (!name.trim()) {
@@ -204,7 +204,7 @@ function CreateBody({ onClose }: { onClose: () => void }) {
               setError(null);
             }}
             options={[
-              { value: "SHORTCUT", label: <><Smartphone className="size-4" /> Atajo</> },
+              { value: "NOTIFICATION", label: <><Bell className="size-4" /> Notificación</> },
               { value: "MANUAL", label: <><KeyRound className="size-4" /> Manual</> },
             ]}
           />
@@ -216,7 +216,7 @@ function CreateBody({ onClose }: { onClose: () => void }) {
             title="Cuenta"
             compact
             value={accountId}
-            placeholder={type === "MANUAL" ? "Sin cuenta" : "Elige la cuenta del atajo"}
+            placeholder={type === "MANUAL" ? "Sin cuenta" : "Elige la cuenta de las notificaciones"}
             allowClear={type === "MANUAL"}
             clearLabel="Sin cuenta"
             options={accounts.map((a) => ({ value: a.id, label: a.name, icon: a.icon, color: a.color }))}
@@ -244,9 +244,9 @@ function CreateBody({ onClose }: { onClose: () => void }) {
           </p>
         ) : (
           <div className="rounded-xl bg-surface px-3 py-2.5">
-            <p className="text-xs text-muted">Ejemplo de la notificación que debe enviar el atajo:</p>
+            <p className="text-xs text-muted">Ejemplo de la notificación que se debe enviar:</p>
             <p className="mt-1.5 rounded-lg bg-bg px-2.5 py-2 font-mono text-[13px] leading-snug text-cream/90">
-              {SHORTCUT_EXAMPLE}
+              {NOTIFICATION_EXAMPLE}
             </p>
           </div>
         )}

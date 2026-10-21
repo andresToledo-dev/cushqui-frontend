@@ -124,9 +124,9 @@ export interface MovementFilters {
   limit?: number;
 }
 
-export type IntegrationType = "SHORTCUT" | "MANUAL";
+export type IntegrationType = "NOTIFICATION" | "MANUAL";
 
-/** Token con el que un atajo (o un envío manual) crea import events. */
+/** Token con el que una notificación del banco (o un envío manual) crea import events. */
 export interface Integration {
   id: string;
   name: string;
