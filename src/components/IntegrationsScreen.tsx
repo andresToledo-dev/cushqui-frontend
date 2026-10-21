@@ -11,7 +11,7 @@ import { useToast } from "./Toast";
 import { Button, ConfirmModal, EmptyState, IconBadge, Input, Modal, SectionLabel, SelectField, Spinner, Tabs } from "./ui";
 
 const TYPE_LABEL: Record<IntegrationType, string> = { SHORTCUT: "Atajo", MANUAL: "Manual" };
-const SHORTCUT_EXAMPLE = "Has enviado 1€ a Andres Francisco Agreda Toledo. Llegara en segundo";
+const SHORTCUT_EXAMPLE = "Has enviado 1€ a John Doe. Llegara en segundo";
 
 export function IntegrationsScreen() {
   const { data, isLoading } = useIntegrations();
