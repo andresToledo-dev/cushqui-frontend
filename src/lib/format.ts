@@ -82,17 +82,20 @@ export function fromLocalInput(v: string): string {
   return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
-/** Marca de "fraccionado" que se guarda al final de la descripción. */
-const SPLIT_RE = /\s*\[Fraccionado (\d+)\/(\d+)\]\s*$/;
+/**
+ * Marca de "fraccionado" que se guarda al final de la descripción: "[Fraccionado 1/3 de 52,00 EUR]".
+ * El importe del movimiento original es opcional (las marcas antiguas no lo llevan).
+ */
+const SPLIT_RE = /\s*\[Fraccionado (\d+)\/(\d+)(?: de ([\d.,]+ [A-Z]{3}))?\]\s*$/;
 
-export function splitInfo(description?: string | null): { text: string; part?: number; total?: number } {
+export function splitInfo(description?: string | null): { text: string; part?: number; total?: number; amount?: string } {
   const desc = description ?? "";
   const m = desc.match(SPLIT_RE);
   if (!m) return { text: desc };
-  return { text: desc.replace(SPLIT_RE, ""), part: Number(m[1]), total: Number(m[2]) };
+  return { text: desc.replace(SPLIT_RE, ""), part: Number(m[1]), total: Number(m[2]), amount: m[3] };
 }
 
-export function withSplitMark(description: string, part: number, total: number): string {
+export function withSplitMark(description: string, part: number, total: number, amount?: string): string {
   const text = splitInfo(description).text.trim();
-  return `${text}${text ? " " : ""}[Fraccionado ${part}/${total}]`;
+  return `${text}${text ? " " : ""}[Fraccionado ${part}/${total}${amount ? ` de ${amount}` : ""}]`;
 }

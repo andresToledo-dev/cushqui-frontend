@@ -9,6 +9,7 @@ import { refreshAll, useAccounts, useCategories, useTransaction } from "@/lib/ho
 import type { Transaction, TxInput } from "@/lib/types";
 import { Screen } from "./AppShell";
 import { HOME_ACCOUNT_KEY } from "@/lib/prefs";
+import { splitDescription } from "@/lib/split";
 import { SplitModal } from "./SplitModal";
 import { useToast } from "./Toast";
 import { BackHeader, Button, ConfirmModal, SectionLabel, SelectField, Spinner, Tabs, type SelectOption } from "./ui";
@@ -135,7 +136,7 @@ function FormBody({ tx }: { tx?: Transaction }) {
       toast("El importe debe ser mayor que cero.", "error");
       return null;
     }
-    const keepMark = original.total ? withSplitMark(description, original.part!, original.total) : description.trim();
+    const keepMark = original.total ? withSplitMark(description, original.part!, original.total, original.amount) : description.trim();
     return {
       type,
       amount: Math.round(value * 100) / 100,
@@ -185,15 +186,25 @@ function FormBody({ tx }: { tx?: Transaction }) {
     const n = parts.length + 1;
     const base = buildPayload({ amount: remainder });
     if (!base) return;
+    // Importes en el orden de las partes: las nuevas (1..n-1) y el movimiento actual (n).
+    const amounts = [...parts, remainder];
+    const total = amounts.reduce((acc, a) => acc + Math.round(a * 100), 0) / 100;
     setBusy(true);
     try {
       let saved: Transaction;
       let source: Pick<TxInput, "type" | "accountId" | "currency" | "merchant" | "transactionDate">;
       let text: string;
+      // Cada parte lleva en la descripción el total del que sale y el reparto.
+      const descriptionOf = (s: typeof source, index: number) =>
+        withSplitMark(
+          splitDescription(text, amounts, index, total, s.currency ?? "EUR"),
+          index + 1,
+          n,
+          `${money(total)} ${s.currency ?? "EUR"}`,
+        );
       if (tx) {
-        // Movimiento ya creado: solo cambia su importe (y la marca de fraccionado). El resto queda como estaba.
+        // Movimiento ya creado: cambian su importe y la descripción. El resto queda como estaba.
         text = original.text.trim();
-        saved = await api.updateTransaction(tx.id, { amount: base.amount, description: withSplitMark(text, n, n) });
         source = {
           type: tx.type,
           accountId: tx.accountId,
@@ -201,10 +212,11 @@ function FormBody({ tx }: { tx?: Transaction }) {
           merchant: tx.merchant || undefined,
           transactionDate: tx.transactionDate,
         };
+        saved = await api.updateTransaction(tx.id, { amount: base.amount, description: descriptionOf(source, n - 1) });
       } else {
         text = description.trim();
-        saved = await persist({ ...base, description: withSplitMark(text, n, n) });
         source = base;
+        saved = await persist({ ...base, description: descriptionOf(source, n - 1) });
       }
       // Las partes nuevas se crean sin categoría: quedan por clasificar.
       for (const [i, part] of parts.entries()) {
@@ -215,7 +227,7 @@ function FormBody({ tx }: { tx?: Transaction }) {
           merchant: source.merchant,
           transactionDate: source.transactionDate,
           amount: part,
-          description: withSplitMark(text, i + 1, n),
+          description: descriptionOf(source, i),
         });
       }
       await refreshAll();

@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { dateTimeLabel, signedMoney, splitInfo } from "@/lib/format";
 import { refreshAll, useAccounts, useCategories, useTransaction } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
+import { withoutSplitDetail } from "@/lib/split";
 import { Screen } from "./AppShell";
 import { useToast } from "./Toast";
 import { BackHeader, ConfirmModal, IconBadge, Spinner } from "./ui";
@@ -41,7 +42,7 @@ export function TransactionDetail({ id }: { id: string }) {
 
   const category = tx.categoryId ? categoriesById.get(tx.categoryId) : undefined;
   const account = accountsById.get(tx.accountId);
-  const { text, part, total } = splitInfo(tx.description);
+  const { text, part, total, amount: originalTotal } = splitInfo(tx.description);
 
   const remove = async () => {
     setBusy(true);
@@ -81,7 +82,12 @@ export function TransactionDetail({ id }: { id: string }) {
           {signedMoney(tx.amount, tx.type)}
           <span className="ml-2 text-xl font-medium text-muted">EUR</span>
         </p>
-        <p className="mt-2 text-sm text-cream/70">{tx.merchant || text || category?.name || "Movimiento"}</p>
+        {total && originalTotal && (
+          <span className="num mt-2 rounded-full bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">
+            Total {originalTotal}
+          </span>
+        )}
+        <p className="mt-2 text-sm text-cream/70">{tx.merchant || withoutSplitDetail(text) || category?.name || "Movimiento"}</p>
         {total && (
           <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">
             <Scissors className="size-3.5" /> Fraccionado · parte {part} de {total}

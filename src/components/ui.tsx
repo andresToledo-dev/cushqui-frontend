@@ -131,6 +131,7 @@ export function Modal({
   subtitle,
   children,
   align = "center",
+  fixedHeight,
 }: {
   open: boolean;
   onClose: () => void;
@@ -138,6 +139,8 @@ export function Modal({
   subtitle?: ReactNode;
   children: ReactNode;
   align?: "center" | "left";
+  /** Alto fijo: el panel no encoge con el contenido (p. ej. al filtrar una búsqueda). */
+  fixedHeight?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -158,7 +161,9 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative max-h-[88dvh] w-full animate-slide-up overflow-y-auto overscroll-none rounded-t-3xl border border-line bg-[#0e0e11] px-5 pt-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl sm:mx-4 sm:max-w-md sm:animate-pop-in sm:rounded-3xl sm:pb-6"
+        className={`relative w-full animate-slide-up overflow-y-auto overscroll-none rounded-t-3xl border border-line bg-[#0e0e11] px-5 pt-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl sm:mx-4 sm:max-w-md sm:animate-pop-in sm:rounded-3xl sm:pb-6 ${
+          fixedHeight ? "h-[88dvh] sm:h-[70dvh]" : "max-h-[88dvh]"
+        }`}
       >
         <button
           onClick={onClose}
@@ -298,7 +303,8 @@ export function SelectField({
         )}
         <ChevronDown className="size-4 shrink-0 text-muted" />
       </button>
-      <Modal open={open} onClose={close} title={title} align="left">
+      {/* Con buscador el alto es fijo: la lista no encoge al filtrar y los resultados no quedan bajo el teclado. */}
+      <Modal open={open} onClose={close} title={title} align="left" fixedHeight={searchable}>
         {searchable && (
           <div className="sticky -top-6 z-10 -mx-5 -mt-2 bg-[#0e0e11] px-5 pt-2 pb-3">
             <div className="relative">
