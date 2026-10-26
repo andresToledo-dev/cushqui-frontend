@@ -5,10 +5,14 @@ export type TxSource = "MANUAL" | "APPLE_PAY" | "MBWAY" | "REVOLUT" | "BANK" | "
 export type AccountType = "BANK" | "CASH" | "CARD" | "WALLET" | "SAVINGS" | "OTHER";
 export type CategoryKind = "EXPENSE" | "INCOME";
 
+export type UserRole = "USER" | "ADMIN";
+
 export interface User {
   id: string;
   email: string;
   name: string;
+  /** ADMIN puede crear invitaciones. */
+  role?: UserRole;
 }
 
 export interface Tokens {
@@ -140,4 +144,22 @@ export interface Integration {
   importEventsCount?: number;
   /** Solo al crearla: el backend no lo vuelve a devolver. */
   plainToken?: string;
+}
+
+export type InvitationStatus = "PENDING" | "USED" | "EXPIRED" | "REVOKED";
+
+/** Código que un ADMIN genera para que alguien pueda registrarse. */
+export interface Invitation {
+  id: string;
+  /** Si existe, solo ese email puede usar el código. */
+  email?: string | null;
+  role: UserRole;
+  status: InvitationStatus;
+  expiresAt: string;
+  usedAt?: string | null;
+  usedByEmail?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+  /** Solo al crearla: el backend no lo vuelve a devolver. */
+  code?: string;
 }

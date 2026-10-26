@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -9,6 +9,7 @@ import { api, ApiError, tokens } from "@/lib/api";
 import { Button, Input } from "./ui";
 
 const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const INVALID_CODE = "El código de invitación no es válido o ha caducado. Solicita un código de invitación al administrador.";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -16,10 +17,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [code, setCode] = useState("");
+  // El registro tiene dos pasos: datos de la cuenta y código de invitación.
+  const [step, setStep] = useState<"account" | "code">("account");
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const isRegister = mode === "register";
+  const codeStep = isRegister && step === "code";
 
   useEffect(() => {
     if (tokens.access) router.replace("/");
@@ -37,11 +42,19 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         setError("Las contraseñas no coinciden.");
         return;
       }
+      if (step === "account") {
+        setStep("code");
+        return;
+      }
+      if (!code.trim()) {
+        setError("Introduce el código de invitación.");
+        return;
+      }
     }
     setBusy(true);
     try {
       const t = isRegister
-        ? await api.register(email.trim(), password, email.trim().split("@")[0].slice(0, 100) || "Usuario")
+        ? await api.register(email.trim(), password, email.trim().split("@")[0].slice(0, 100) || "Usuario", code.trim())
         : await api.login(email.trim(), password);
       tokens.set(t);
       for (const key of cache.keys()) cache.delete(key);
@@ -49,6 +62,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) setError("Email o contraseña incorrectos.");
       else if (err instanceof ApiError && err.status === 409) setError("Ya existe una cuenta con ese email.");
+      // El backend comprueba el código antes que el email: un 400 sobre la invitación es un código no válido.
+      else if (isRegister && err instanceof ApiError && err.status === 400 && /invitation/i.test(err.message))
+        setError(INVALID_CODE);
       else setError(err instanceof Error ? err.message : "Algo salió mal");
       setBusy(false);
     }
@@ -62,54 +78,72 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             C
           </span>
           <h1 className="font-display text-2xl font-semibold tracking-tight">
-            {isRegister ? "Crea tu cuenta" : "Bienvenido de nuevo"}
+            {codeStep ? "Código de invitación" : isRegister ? "Crea tu cuenta" : "Bienvenido de nuevo"}
           </h1>
           <p className="mt-2 text-sm text-muted">
-            {isRegister ? "Empieza a controlar tus gastos" : "Inicia sesión para ver tus finanzas"}
+            {codeStep
+              ? "El registro es solo por invitación. Introduce el código que te dio el administrador."
+              : isRegister
+                ? "Empieza a controlar tus gastos"
+                : "Inicia sesión para ver tus finanzas"}
           </p>
         </div>
 
-        <div className="flex flex-col gap-3">
+        {codeStep ? (
           <Input
-            type="email"
-            autoComplete="email"
-            placeholder="Email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            autoFocus
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            placeholder="XXXX-XXXX-XXXX"
+            aria-label="Código de invitación"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="text-center font-mono tracking-widest uppercase"
           />
-          <div className="relative">
+        ) : (
+          <div className="flex flex-col gap-3">
             <Input
-              type={show ? "text" : "password"}
-              autoComplete={isRegister ? "new-password" : "current-password"}
-              placeholder="Contraseña"
+              type="email"
+              autoComplete="email"
+              placeholder="Email"
               required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="pr-12"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
-            <button
-              type="button"
-              onClick={() => setShow((s) => !s)}
-              aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
-              className="absolute top-1/2 right-3 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted hover:text-cream"
-            >
-              {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
+            <div className="relative">
+              <Input
+                type={show ? "text" : "password"}
+                autoComplete={isRegister ? "new-password" : "current-password"}
+                placeholder="Contraseña"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
+                className="absolute top-1/2 right-3 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted hover:text-cream"
+              >
+                {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            {isRegister && (
+              <Input
+                type={show ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="Confirmar contraseña"
+                required
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
+            )}
           </div>
-          {isRegister && (
-            <Input
-              type={show ? "text" : "password"}
-              autoComplete="new-password"
-              placeholder="Confirmar contraseña"
-              required
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
-          )}
-        </div>
+        )}
 
-        {isRegister && !error && (
+        {isRegister && !codeStep && !error && (
           <p className="mt-3 px-1 text-xs text-faint">Mínimo 8 caracteres con mayúscula, minúscula, número y símbolo.</p>
         )}
         {error && (
@@ -119,8 +153,21 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         )}
 
         <Button type="submit" disabled={busy} className="mt-5 w-full">
-          {busy ? "Un momento…" : isRegister ? "Crear cuenta" : "Iniciar sesión"}
+          {busy ? "Un momento…" : !isRegister ? "Iniciar sesión" : codeStep ? "Crear cuenta" : "Continuar"}
         </Button>
+        {codeStep && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setStep("account");
+              setError(null);
+            }}
+            className="mt-2 w-full"
+          >
+            <ArrowLeft className="size-4" /> Volver
+          </Button>
+        )}
 
         <p className="mt-6 text-center text-sm text-muted">
           {isRegister ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
