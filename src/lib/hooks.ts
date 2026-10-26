@@ -123,3 +123,8 @@ export function useMovements(filters: MovementFilters) {
 export function useIntegrations() {
   return useSWR("integrations", api.integrations);
 }
+
+/** Solo se piden si el usuario es ADMIN: para el resto el backend responde 403. */
+export function useInvitations(enabled: boolean) {
+  return useSWR(enabled ? "invitations" : null, api.invitations);
+}

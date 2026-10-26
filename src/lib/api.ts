@@ -6,6 +6,7 @@ import type {
   Dashboard,
   Integration,
   IntegrationType,
+  Invitation,
   Movement,
   MovementFilters,
   Paginated,
@@ -158,8 +159,9 @@ function qs(params: object): string {
 export const api = {
   login: (email: string, password: string) =>
     request<Tokens>("/auth/login", { method: "POST", body: { email, password }, auth: false }),
-  register: (email: string, password: string, name: string) =>
-    request<Tokens>("/auth/register", { method: "POST", body: { email, password, name }, auth: false }),
+  /** El registro solo funciona con un código de invitación válido (400 si no lo es). */
+  register: (email: string, password: string, name: string, invitationCode: string) =>
+    request<Tokens>("/auth/register", { method: "POST", body: { email, password, name, invitationCode }, auth: false }),
   logout: () => request<void>("/auth/logout", { method: "POST" }, false),
   me: () => request<User>("/auth/me"),
 
@@ -217,6 +219,14 @@ export const api = {
   createIntegration: (body: { name: string; type: IntegrationType; accountId?: string }) =>
     request<Integration>("/integrations", { method: "POST", body }),
   deleteIntegration: (id: string) => request<void>(`/integrations/${id}`, { method: "DELETE" }),
+
+  /** Solo ADMIN. */
+  invitations: () => request<Invitation[]>("/invitations"),
+  /** La respuesta trae `code`, que solo se muestra esta vez. */
+  createInvitation: (body: { email?: string; expiresInDays?: number } = {}) =>
+    request<Invitation>("/invitations", { method: "POST", body }),
+  /** Solo las pendientes: el backend responde 409 si ya se usó. */
+  revokeInvitation: (id: string) => request<Invitation>(`/invitations/${id}`, { method: "DELETE" }),
 
   /** Recorre todas las páginas de un listado de transacciones. */
   async allTransactions(f: TxFilters = {}): Promise<Transaction[]> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, LayoutGrid, List, LogOut, PanelLeft, Plug, Wallet } from "lucide-react";
+import { ChartColumn, LayoutGrid, List, LogOut, PanelLeft, Plug, Ticket, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
@@ -15,6 +15,8 @@ const NAV = [
   { href: "/cuentas", label: "Cuentas", icon: Wallet },
   { href: "/categorias", label: "Categorías", icon: LayoutGrid },
   { href: "/integraciones", label: "Integraciones", icon: Plug },
+  // Solo para usuarios con rol ADMIN
+  { href: "/invitaciones", label: "Invitaciones", icon: Ticket, admin: true },
 ];
 
 const SidebarContext = createContext<{ open: boolean; toggle: () => void }>({ open: false, toggle: () => {} });
@@ -144,7 +146,7 @@ function Sidebar() {
         </button>
       </div>
       <nav className="flex flex-col gap-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.filter((item) => !item.admin || me?.role === "ADMIN").map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <Link
