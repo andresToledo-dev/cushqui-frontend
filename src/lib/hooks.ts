@@ -119,3 +119,7 @@ export function useMovements(filters: MovementFilters) {
     return out;
   });
 }
+
+export function useIntegrations() {
+  return useSWR("integrations", api.integrations);
+}

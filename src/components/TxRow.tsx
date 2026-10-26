@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signedMoney, splitInfo, timeLabel } from "@/lib/format";
 import type { AccountView, CategoryView } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
+import { withoutSplitDetail } from "@/lib/split";
 import type { Transaction } from "@/lib/types";
 import { IconBadge } from "./ui";
 
@@ -25,7 +26,10 @@ export function TxRow({
   account?: AccountView;
 }) {
   const unclassified = tx.status === "UNCLASSIFIED";
-  const { text, total } = splitInfo(tx.description);
+  const split = splitInfo(tx.description);
+  const { total, amount: originalTotal } = split;
+  // El detalle de la división solo se ve en el detalle del movimiento, no en la fila.
+  const text = withoutSplitDetail(split.text);
   const title = tx.merchant || text || category?.name || "Movimiento";
   const accountName = account?.name ?? tx.accountName ?? "Cuenta";
 
@@ -57,9 +61,16 @@ export function TxRow({
           )}
         </p>
       </div>
-      <p className={`num shrink-0 font-semibold ${tx.type === "INCOME" ? "text-ok" : ""}`}>
-        {signedMoney(tx.amount, tx.type)} <span className="text-xs font-normal text-muted">EUR</span>
-      </p>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <p className={`num font-semibold ${tx.type === "INCOME" ? "text-ok" : ""}`}>
+          {signedMoney(tx.amount, tx.type)} <span className="text-xs font-normal text-muted">EUR</span>
+        </p>
+        {total && originalTotal && (
+          <span className="num rounded-full bg-warn/10 px-1.5 py-px text-[10px] font-semibold text-warn">
+            de {originalTotal}
+          </span>
+        )}
+      </div>
       <ChevronRight className="size-4 shrink-0 text-faint" />
     </Link>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, LayoutGrid, List, LogOut, PanelLeft, Wallet } from "lucide-react";
+import { ChartColumn, LayoutGrid, List, LogOut, PanelLeft, Plug, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/transacciones", label: "Transacciones", icon: List },
   { href: "/cuentas", label: "Cuentas", icon: Wallet },
   { href: "/categorias", label: "Categorías", icon: LayoutGrid },
+  { href: "/integraciones", label: "Integraciones", icon: Plug },
 ];
 
 const SidebarContext = createContext<{ open: boolean; toggle: () => void }>({ open: false, toggle: () => {} });

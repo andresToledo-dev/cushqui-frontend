@@ -4,6 +4,8 @@ import type {
   Category,
   CategoryKind,
   Dashboard,
+  Integration,
+  IntegrationType,
   Movement,
   MovementFilters,
   Paginated,
@@ -209,6 +211,12 @@ export const api = {
   movements: (f: MovementFilters = {}) => request<Paginated<Movement>>(`/movements${qs(f)}`),
 
   dashboard: () => request<Dashboard>("/dashboard"),
+
+  integrations: () => request<Integration[]>("/integrations"),
+  /** La respuesta trae `plainToken`, que solo se muestra esta vez. */
+  createIntegration: (body: { name: string; type: IntegrationType; accountId?: string }) =>
+    request<Integration>("/integrations", { method: "POST", body }),
+  deleteIntegration: (id: string) => request<void>(`/integrations/${id}`, { method: "DELETE" }),
 
   /** Recorre todas las páginas de un listado de transacciones. */
   async allTransactions(f: TxFilters = {}): Promise<Transaction[]> {
