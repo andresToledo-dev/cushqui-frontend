@@ -3,10 +3,10 @@
 import { ChartColumn, LayoutGrid, List, LogOut, PanelLeft, Plug, Ticket, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type MouseEventHandler, type ReactNode, type RefObject } from "react";
 import { useSWRConfig } from "swr";
 import { api, LOGOUT_EVENT, tokens } from "@/lib/api";
-import { useMe, useUnclassifiedCount } from "@/lib/hooks";
+import { forgetLeftScreens, useMe, useUnclassifiedCount } from "@/lib/hooks";
 import { Spinner } from "./ui";
 
 const NAV = [
@@ -128,6 +128,7 @@ function Sidebar() {
       await api.logout();
     } catch {}
     tokens.clear();
+    forgetLeftScreens();
     for (const key of cache.keys()) cache.delete(key);
     router.replace("/login");
   };
@@ -152,6 +153,7 @@ function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={forgetLeftScreens}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition ${
                 active ? "bg-surface text-accent" : "text-cream/75 hover:bg-surface/60 hover:text-cream"
               }`}
@@ -204,12 +206,16 @@ export function FixedScreen({
   children,
   toggle = true,
   onListScroll,
+  listRef,
+  onListClickCapture,
 }: {
   header: ReactNode;
   children: ReactNode;
   /** Muestra el botón del menú lateral (las pantallas de detalle usan su propio "volver"). */
   toggle?: boolean;
   onListScroll?: (top: number) => void;
+  listRef?: RefObject<HTMLDivElement | null>;
+  onListClickCapture?: MouseEventHandler<HTMLDivElement>;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -218,6 +224,8 @@ export function FixedScreen({
         {header}
       </div>
       <div
+        ref={listRef}
+        onClickCapture={onListClickCapture}
         className="min-h-0 flex-1 overflow-y-auto overscroll-none"
         onScroll={onListScroll ? (e) => onListScroll(e.currentTarget.scrollTop) : undefined}
       >

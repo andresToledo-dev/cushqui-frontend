@@ -2,8 +2,8 @@
 
 import { LayoutGrid, Plus } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { useCategories } from "@/lib/hooks";
+import { useRef, useState } from "react";
+import { useCategories, useTabScroll } from "@/lib/hooks";
 import type { CategoryKind } from "@/lib/types";
 import { FixedScreen, SidebarToggle } from "./AppShell";
 import { EmptyState, Fab, IconBadge, Spinner, Tabs } from "./ui";
@@ -13,11 +13,15 @@ export function CategoriesScreen({ initialKind = "EXPENSE" }: { initialKind?: Ca
   const { categories, isLoading } = useCategories();
   const list = categories.filter((c) => c.kind === kind);
   const tipo = kind === "INCOME" ? "ingresos" : "gastos";
+  const listRef = useRef<HTMLDivElement>(null);
+  const { remember, leaveOnLink } = useTabScroll("categorias", listRef, kind, categories.length > 0);
 
   return (
     <>
       <FixedScreen
         toggle={false}
+        listRef={listRef}
+        onListClickCapture={leaveOnLink}
         header={
           <div className="border-b border-line pb-4">
             <div className="relative flex h-11 items-center justify-center">
@@ -28,7 +32,10 @@ export function CategoriesScreen({ initialKind = "EXPENSE" }: { initialKind?: Ca
               size="sm"
               className="mx-auto mt-4 max-w-xs"
               value={kind}
-              onChange={setKind}
+              onChange={(k) => {
+                remember();
+                setKind(k);
+              }}
               options={[
                 { value: "EXPENSE", label: "GASTOS" },
                 { value: "INCOME", label: "INGRESOS" },

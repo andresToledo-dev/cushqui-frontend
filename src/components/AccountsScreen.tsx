@@ -2,9 +2,9 @@
 
 import { ArrowLeftRight, ChevronRight, History, Plus, Wallet } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { money } from "@/lib/format";
-import { useAccounts } from "@/lib/hooks";
+import { useAccounts, useTabScroll } from "@/lib/hooks";
 import { FixedScreen, SidebarToggle } from "./AppShell";
 import { TransferModal } from "./TransferModal";
 import { EmptyState, Fab, IconBadge, Spinner } from "./ui";
@@ -12,11 +12,15 @@ import { EmptyState, Fab, IconBadge, Spinner } from "./ui";
 export function AccountsScreen() {
   const { accounts, total, realTotal, isLoading, loaded } = useAccounts();
   const [transfer, setTransfer] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const { leaveOnLink } = useTabScroll("cuentas", listRef, "cuentas", loaded);
 
   return (
     <>
       <FixedScreen
         toggle={false}
+        listRef={listRef}
+        onListClickCapture={leaveOnLink}
         header={
           <>
             <div className="relative flex h-11 items-center justify-center">

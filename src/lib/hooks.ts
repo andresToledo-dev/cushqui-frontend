@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from "react";
 import useSWR, { mutate } from "swr";
 import { api } from "./api";
 import { colorFor, defaultAccountIcon, knownIcon, normalizeIcon, safeColor } from "./icons";
@@ -23,6 +23,63 @@ export interface CategoryView extends Category {
 /** Revalida todos los datos cacheados tras una mutación. */
 export function refreshAll() {
   return mutate(() => true);
+}
+
+/** Estado de las pantallas de las que se salió abriendo un elemento de su lista, para recuperarlo al volver. */
+const leftScreens = new Map<string, { positions: Map<string, number>; state?: unknown }>();
+
+/** Al entrar desde el menú (o cerrar sesión) las pantallas empiezan de cero. */
+export function forgetLeftScreens() {
+  leftScreens.clear();
+}
+
+/** Lo que guardó la pantalla `id` al salir (pestaña, filtros…). Solo se puede leer al montarla. */
+export function leftScreenState<T>(id: string): T | undefined {
+  return leftScreens.get(id)?.state as T | undefined;
+}
+
+/**
+ * Conserva el scroll de cada pestaña de la pantalla `id`, al cambiar de pestaña y al abrir un elemento y volver atrás.
+ * Si se vuelve a entrar desde el menú, empieza arriba.
+ * `key` identifica lo que muestra la lista y `ready` indica que ya está pintada, porque antes no se puede colocar.
+ * `state` es lo que la pantalla necesita recuperar además del scroll.
+ */
+export function useTabScroll(id: string, listRef: RefObject<HTMLElement | null>, key: string, ready: boolean, state?: unknown) {
+  const [left] = useState(() => leftScreens.get(id));
+  const saved = useRef(left?.positions ?? new Map<string, number>());
+  const restoring = useRef(left !== undefined);
+
+  useEffect(() => {
+    leftScreens.delete(id);
+  }, [id]);
+
+  useLayoutEffect(() => {
+    if (!restoring.current || !ready || !listRef.current) return;
+    listRef.current.scrollTop = saved.current.get(key) ?? 0;
+    restoring.current = false;
+  }, [listRef, key, ready]);
+
+  /** Llamar justo antes de cambiar de pestaña. */
+  const remember = useCallback(() => {
+    saved.current.set(key, listRef.current?.scrollTop ?? 0);
+    restoring.current = true;
+  }, [listRef, key]);
+
+  /** Llamar justo antes de navegar a un elemento de la lista. */
+  const leave = useCallback(() => {
+    saved.current.set(key, listRef.current?.scrollTop ?? 0);
+    leftScreens.set(id, { positions: saved.current, state });
+  }, [id, listRef, key, state]);
+
+  /** Igual que `leave`, para los clics dentro de la lista: solo actúa si el clic abre un enlace. */
+  const leaveOnLink = useCallback(
+    (e: MouseEvent) => {
+      if ((e.target as Element).closest("a")) leave();
+    },
+    [leave],
+  );
+
+  return { remember, leave, leaveOnLink };
 }
 
 export function useMe() {

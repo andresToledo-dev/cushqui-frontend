@@ -1,9 +1,9 @@
 "use client";
 
 import { Inbox } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { dayGroupKey, dayLabel, money } from "@/lib/format";
-import { useAccounts, useCategories, useTransactions } from "@/lib/hooks";
+import { useAccounts, useCategories, useTabScroll, useTransactions } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
 import { periodRange } from "@/lib/period";
 import { usePeriod } from "@/lib/period-store";
@@ -83,6 +83,10 @@ export function CategoryTransactionsScreen({
     return [...map.values()];
   }, [txs]);
 
+  const listRef = useRef<HTMLDivElement>(null);
+  const scrollKey = JSON.stringify([categoryId, subcategoryId, kind, accountId, period]);
+  const { leaveOnLink } = useTabScroll("categoria-movimientos", listRef, scrollKey, data !== undefined);
+
   const category = unclassified ? undefined : categoriesById.get(categoryId);
   const categoryName = unclassified ? "Sin clasificar" : (category?.name ?? txs[0]?.categoryName ?? "Categoría");
   const subName =
@@ -100,6 +104,8 @@ export function CategoryTransactionsScreen({
     <>
       <FixedScreen
         toggle={false}
+        listRef={listRef}
+        onListClickCapture={leaveOnLink}
         header={
           <div className="border-b border-line pb-3">
             <BackHeader title={<span className="block truncate">{title}</span>} backHref="/" />

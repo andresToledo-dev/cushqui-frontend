@@ -1,11 +1,11 @@
 "use client";
 
 import { Inbox, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import { api } from "@/lib/api";
 import { dayGroupKey, dayLabel } from "@/lib/format";
-import { useAccounts, useCategories, useUnclassifiedCount } from "@/lib/hooks";
+import { leftScreenState, useAccounts, useCategories, useTabScroll, useUnclassifiedCount } from "@/lib/hooks";
 import { periodRange, type Period } from "@/lib/period";
 import { usePeriod } from "@/lib/period-store";
 import type { Paginated, Transaction, TxFilters } from "@/lib/types";
@@ -16,6 +16,7 @@ import { Button, EmptyState, Fab, Modal, SelectField, Spinner, Tabs } from "./ui
 
 export type TxTab = "gastos" | "ingresos" | "clasificar";
 const PAGE = 30;
+const SCREEN = "transacciones";
 
 function filtersFor(tab: TxTab, accountId: string | null, period: Period): TxFilters {
   const { from, to } = periodRange(period);
@@ -25,8 +26,9 @@ function filtersFor(tab: TxTab, accountId: string | null, period: Period): TxFil
 }
 
 export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxTab }) {
-  const [tab, setTab] = useState<TxTab>(initialTab);
-  const [accountId, setAccountId] = useState<string | null>(null);
+  const [left] = useState(() => leftScreenState<{ tab: TxTab; accountId: string | null }>(SCREEN));
+  const [tab, setTab] = useState<TxTab>(left?.tab ?? initialTab);
+  const [accountId, setAccountId] = useState<string | null>(left?.accountId ?? null);
   const [filterOpen, setFilterOpen] = useState(false);
   const pending = useUnclassifiedCount();
   const [period, setPeriod] = usePeriod();
@@ -59,12 +61,17 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
     return [...map.values()];
   }, [items]);
 
+  const listRef = useRef<HTMLDivElement>(null);
+  const { remember, leaveOnLink } = useTabScroll(SCREEN, listRef, JSON.stringify(filters), data !== undefined, { tab, accountId });
+
   const filteredAccount = accountId ? accountsById.get(accountId) : undefined;
 
   return (
     <>
       <FixedScreen
         toggle={false}
+        listRef={listRef}
+        onListClickCapture={leaveOnLink}
         header={
           <>
             <div className="flex items-center gap-3">
@@ -95,7 +102,10 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
             <Tabs
               className="mt-4"
               value={tab}
-              onChange={setTab}
+              onChange={(t) => {
+                remember();
+                setTab(t);
+              }}
               options={[
                 { value: "gastos", label: "Gastos" },
                 { value: "ingresos", label: "Ingresos" },

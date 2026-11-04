@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { money } from "@/lib/format";
-import { useAccounts, useCategories, useTransactions, type CategoryView } from "@/lib/hooks";
+import { useAccounts, useCategories, useTabScroll, useTransactions, type CategoryView } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
 import { containsNow, periodRange, thisPeriodWord } from "@/lib/period";
 import { usePeriod } from "@/lib/period-store";
@@ -193,6 +193,7 @@ export function HomeScreen() {
   // El gráfico es parte del contenido desplazable: sube con el dedo sin saltos. Cuando sale de la vista,
   // la cabecera fija de la lista muestra una barra resumen (de altura constante, así nada se mueve).
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { remember, leave, leaveOnLink } = useTabScroll("inicio", scrollRef, JSON.stringify([kind, period, effectiveAccountId]), txs !== undefined);
   const chartRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = scrollRef.current;
@@ -212,10 +213,12 @@ export function HomeScreen() {
   }, [chart]);
 
   /* ----- Navegación ----- */
-  const openList = (catId: string | null, subId?: string | null) =>
+  const openList = (catId: string | null, subId?: string | null) => {
+    leave();
     router.push(
       categoryTransactionsHref({ categoryId: catId, subcategoryId: subId, kind, accountId: effectiveAccountId }),
     );
+  };
 
   const openRow = (id: string) => {
     if (view.level === "categories") {
@@ -268,6 +271,7 @@ export function HomeScreen() {
           className="mt-3"
           value={kind}
           onChange={(k) => {
+            remember();
             setKind(k);
             setView({ level: "categories" });
           }}
@@ -295,7 +299,7 @@ export function HomeScreen() {
       </div>
 
       {/* Contenido desplazable: gráfico + lista */}
-      <div ref={scrollRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-none">
+      <div ref={scrollRef} onClickCapture={leaveOnLink} className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-none">
         <div className="mx-auto w-full max-w-xl px-4 sm:px-6">
           <div ref={chartRef}>
             {chart === "donut" ? (
