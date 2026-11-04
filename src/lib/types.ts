@@ -136,6 +136,9 @@ export interface Integration {
   name: string;
   type: IntegrationType;
   accountId?: string | null;
+  /** Solo NOTIFICATION: frases separadas por "," que marcan el mensaje como gasto o ingreso. */
+  expenseWords?: string | null;
+  incomeWords?: string | null;
   isActive: boolean;
   lastUsedAt?: string | null;
   createdAt: string;

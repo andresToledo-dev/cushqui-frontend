@@ -215,9 +215,18 @@ export const api = {
   dashboard: () => request<Dashboard>("/dashboard"),
 
   integrations: () => request<Integration[]>("/integrations"),
-  /** La respuesta trae `plainToken`, que solo se muestra esta vez. */
-  createIntegration: (body: { name: string; type: IntegrationType; accountId?: string }) =>
-    request<Integration>("/integrations", { method: "POST", body }),
+  integration: (id: string) => request<Integration>(`/integrations/${id}`),
+  /** La respuesta trae `plainToken`, que solo se muestra esta vez. Las palabras solo van en NOTIFICATION. */
+  createIntegration: (body: {
+    name: string;
+    type: IntegrationType;
+    accountId?: string;
+    expenseWords?: string;
+    incomeWords?: string;
+  }) => request<Integration>("/integrations", { method: "POST", body }),
+  /** Solo se editan el nombre y, en NOTIFICATION, las palabras (nunca vacías). */
+  updateIntegration: (id: string, body: { name?: string; expenseWords?: string; incomeWords?: string }) =>
+    request<Integration>(`/integrations/${id}`, { method: "PATCH", body }),
   deleteIntegration: (id: string) => request<void>(`/integrations/${id}`, { method: "DELETE" }),
 
   /** Solo ADMIN. */

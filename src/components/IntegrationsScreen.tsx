@@ -1,24 +1,21 @@
 "use client";
 
-import { Bell, Clock, KeyRound, Plug, Plus, Trash2 } from "lucide-react";
+import { Bell, Clock, KeyRound, Pencil, Plug, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { dateTimeLabel } from "@/lib/format";
 import { refreshAll, useAccounts, useIntegrations } from "@/lib/hooks";
-import type { Integration, IntegrationType } from "@/lib/types";
+import type { Integration } from "@/lib/types";
 import { FixedScreen, SidebarToggle } from "./AppShell";
-import { SecretStep } from "./SecretStep";
+import { TYPE_LABEL } from "./IntegrationForm";
 import { useToast } from "./Toast";
-import { Button, ConfirmModal, EmptyState, IconBadge, Input, Modal, SectionLabel, SelectField, Spinner, Tabs } from "./ui";
-
-const TYPE_LABEL: Record<IntegrationType, string> = { NOTIFICATION: "Notificación", MANUAL: "Manual" };
-const NOTIFICATION_EXAMPLE = "Has enviado 1€ a John Doe. Llegara en segundo";
+import { ConfirmModal, EmptyState, IconBadge, Spinner } from "./ui";
 
 export function IntegrationsScreen() {
   const { data, isLoading } = useIntegrations();
   const integrations = data ?? [];
   const totalImports = integrations.reduce((n, i) => n + (i.importEventsCount ?? 0), 0);
-  const [creating, setCreating] = useState(false);
   const [removing, setRemoving] = useState<Integration | null>(null);
 
   return (
@@ -36,12 +33,12 @@ export function IntegrationsScreen() {
               <Stat label="Imports recibidos" value={data ? totalImports : "—"} />
             </div>
             <div className="border-b border-line pt-3 pb-4">
-              <button
-                onClick={() => setCreating(true)}
+              <Link
+                href="/integraciones/nueva"
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-cream font-semibold text-ink transition hover:bg-white active:scale-[0.98]"
               >
                 <Plus className="size-4" /> Nueva integración
-              </button>
+              </Link>
             </div>
           </>
         }
@@ -63,7 +60,6 @@ export function IntegrationsScreen() {
         </div>
       </FixedScreen>
 
-      <CreateIntegrationModal open={creating} onClose={() => setCreating(false)} />
       <DeleteIntegration integration={removing} onClose={() => setRemoving(null)} />
     </>
   );
@@ -132,6 +128,13 @@ function IntegrationRow({ integration: i, onDelete }: { integration: Integration
         <p className="num text-lg leading-none font-semibold">{count}</p>
         <p className="mt-1 text-[10px] text-muted">{count === 1 ? "import" : "imports"}</p>
       </div>
+      <Link
+        href={`/integraciones/${i.id}`}
+        aria-label={`Editar ${i.name}`}
+        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-cream"
+      >
+        <Pencil className="size-4" />
+      </Link>
       <button
         onClick={onDelete}
         aria-label={`Eliminar ${i.name}`}
@@ -140,140 +143,6 @@ function IntegrationRow({ integration: i, onDelete }: { integration: Integration
         <Trash2 className="size-4" />
       </button>
     </div>
-  );
-}
-
-function CreateIntegrationModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // Se monta de nuevo en cada apertura: así el formulario y el token empiezan vacíos.
-  return open ? <CreateBody onClose={onClose} /> : null;
-}
-
-function CreateBody({ onClose }: { onClose: () => void }) {
-  const toast = useToast();
-  const { accounts, byId } = useAccounts();
-  const [type, setType] = useState<IntegrationType>("NOTIFICATION");
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [customName, setCustomName] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<Integration | null>(null);
-
-  const accountName = accountId ? byId.get(accountId)?.name : undefined;
-  // El nombre sigue al tipo y la cuenta hasta que el usuario lo edita.
-  const name = customName ?? (accountName ? `${TYPE_LABEL[type]} · ${accountName}` : TYPE_LABEL[type]);
-  const needsAccount = type === "NOTIFICATION" && !accountId;
-
-  const submit = async () => {
-    if (needsAccount) {
-      setError("Una integración de notificación necesita una cuenta: los movimientos se registran en ella.");
-      return;
-    }
-    if (!name.trim()) {
-      setError("Pon un nombre a la integración.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api.createIntegration({ name: name.trim(), type, accountId: accountId ?? undefined });
-      setCreated(res);
-      refreshAll();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo crear la integración");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (created) {
-    return (
-      <Modal open onClose={onClose} title="Integración creada" subtitle={created.name}>
-        <SecretStep
-          value={created.plainToken ?? ""}
-          hint="Cópialo en tu integración y guárdalo: no se volverá a mostrar."
-          testId="integration-token"
-          onDone={onClose}
-          onCopied={() => toast("Token copiado")}
-        />
-      </Modal>
-    );
-  }
-
-  return (
-    <Modal open onClose={onClose} title="Nueva integración" align="left">
-      <div className="flex flex-col gap-4">
-        <div>
-          <SectionLabel>Tipo</SectionLabel>
-          <Tabs
-            value={type}
-            onChange={(t) => {
-              setType(t);
-              setError(null);
-            }}
-            options={[
-              { value: "NOTIFICATION", label: <><Bell className="size-4" /> Notificación</> },
-              { value: "MANUAL", label: <><KeyRound className="size-4" /> Manual</> },
-            ]}
-          />
-        </div>
-
-        <div>
-          <SectionLabel>Cuenta {type === "MANUAL" && <span className="normal-case tracking-normal text-faint">(opcional)</span>}</SectionLabel>
-          <SelectField
-            title="Cuenta"
-            compact
-            value={accountId}
-            placeholder={type === "MANUAL" ? "Sin cuenta" : "Elige la cuenta de las notificaciones"}
-            allowClear={type === "MANUAL"}
-            clearLabel="Sin cuenta"
-            options={accounts.map((a) => ({ value: a.id, label: a.name, icon: a.icon, color: a.color }))}
-            onChange={(v) => {
-              setAccountId(v);
-              setError(null);
-            }}
-          />
-        </div>
-
-        <div>
-          <SectionLabel>Nombre</SectionLabel>
-          <Input
-            value={name}
-            maxLength={100}
-            onChange={(e) => setCustomName(e.target.value)}
-            aria-label="Nombre de la integración"
-            className="h-12!"
-          />
-        </div>
-
-        {type === "MANUAL" ? (
-          <p className="rounded-xl bg-surface px-3 py-2.5 text-sm text-cream/85">
-            Debe enviar manualmente importe, cuenta final, tipo de movimiento (gasto o ingreso)
-          </p>
-        ) : (
-          <div className="rounded-xl bg-surface px-3 py-2.5">
-            <p className="text-xs text-muted">Ejemplo de la notificación que se debe enviar:</p>
-            <p className="mt-1.5 rounded-lg bg-bg px-2.5 py-2 font-mono text-[13px] leading-snug text-cream/90">
-              {NOTIFICATION_EXAMPLE}
-            </p>
-          </div>
-        )}
-
-        {error && (
-          <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">
-            {error}
-          </p>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={submit} disabled={busy}>
-            {busy ? "Creando…" : "Crear"}
-          </Button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 
