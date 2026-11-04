@@ -124,6 +124,10 @@ export function useIntegrations() {
   return useSWR("integrations", api.integrations);
 }
 
+export function useIntegration(id: string | null) {
+  return useSWR(id ? ["integration", id] : null, () => api.integration(id!));
+}
+
 /** Solo se piden si el usuario es ADMIN: para el resto el backend responde 403. */
 export function useInvitations(enabled: boolean) {
   return useSWR(enabled ? "invitations" : null, api.invitations);
