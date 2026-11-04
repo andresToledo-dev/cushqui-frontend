@@ -10,7 +10,7 @@ import { TransferModal } from "./TransferModal";
 import { EmptyState, Fab, IconBadge, Spinner } from "./ui";
 
 export function AccountsScreen() {
-  const { accounts, total, isLoading, loaded } = useAccounts();
+  const { accounts, total, realTotal, isLoading, loaded } = useAccounts();
   const [transfer, setTransfer] = useState(false);
 
   return (
@@ -27,6 +27,9 @@ export function AccountsScreen() {
               <p className="text-[11px] font-semibold tracking-[0.1em] text-muted uppercase">Balance total</p>
               <p className="num mt-1 text-[44px] leading-tight font-semibold">
                 {loaded ? money(total) : "—"} <span className="text-lg font-medium text-muted">EUR</span>
+              </p>
+              <p className="mt-0.5 text-xs text-muted" data-testid="real-balance">
+                Balance real: <span className="num">{loaded ? money(realTotal) : "—"} EUR</span>
               </p>
             </div>
 

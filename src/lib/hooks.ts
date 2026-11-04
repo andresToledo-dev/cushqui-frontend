@@ -56,10 +56,12 @@ export function useAccounts() {
     [swr.data, meta],
   );
   const total = useMemo(() => accounts.reduce((acc, a) => (a.balanceVisible ? acc + a.balance : acc), 0), [accounts]);
+  /** Suma de todas las cuentas, también las que no cuentan en el balance total. */
+  const realTotal = useMemo(() => accounts.reduce((acc, a) => acc + a.balance, 0), [accounts]);
   const byId = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   /** false hasta recibir las cuentas: así no se muestra un saldo 0 que no es real. */
   const loaded = swr.data !== undefined;
-  return { ...swr, accounts, total, byId, loaded };
+  return { ...swr, accounts, total, realTotal, byId, loaded };
 }
 
 export function useCategories() {
