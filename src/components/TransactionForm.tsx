@@ -73,7 +73,7 @@ function FormBody({ tx }: { tx?: Transaction }) {
   const [homeAccount] = useState(readHomeAccount);
   const effectiveAccountId =
     accountId ??
-    (isNew ? ((homeAccount && accountsById.has(homeAccount) ? homeAccount : null) ?? accounts[0]?.id ?? null) : null);
+    (isNew ? ((homeAccount && accountsById.get(homeAccount)?.visibleInList ? homeAccount : null) ?? accounts[0]?.id ?? null) : null);
 
   const category = categoryId ? categoriesById.get(categoryId) : undefined;
 

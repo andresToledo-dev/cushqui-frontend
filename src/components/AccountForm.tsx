@@ -11,7 +11,7 @@ import { setAccountMeta } from "@/lib/meta";
 import { Screen } from "./AppShell";
 import { ColorPicker, IconPicker } from "./IconColorPicker";
 import { useToast } from "./Toast";
-import { BackHeader, Button, ConfirmModal, IconBadge, Input, SectionLabel, Spinner } from "./ui";
+import { BackHeader, Button, ConfirmModal, IconBadge, Input, SectionLabel, Spinner, SwitchRow } from "./ui";
 
 export function AccountForm({ id }: { id?: string }) {
   const { byId, isLoading } = useAccounts();
@@ -45,6 +45,8 @@ function Body({ account }: { account?: AccountView }) {
   const [icon, setIcon] = useState(account?.icon ?? "banknote");
   const [color, setColor] = useState(account?.color ?? COLORS[3]);
   const [balanceText, setBalanceText] = useState(account ? money(account.balance) : "");
+  const [visibleInList, setVisibleInList] = useState(account?.visibleInList ?? true);
+  const [balanceVisible, setBalanceVisible] = useState(account?.balanceVisible ?? true);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
 
@@ -55,7 +57,7 @@ function Body({ account }: { account?: AccountView }) {
       const balance = Math.round(parseAmount(balanceText) * 100) / 100;
       let saved;
       if (account) {
-        saved = await api.updateAccount(account.id, { name: name.trim(), icon, color });
+        saved = await api.updateAccount(account.id, { name: name.trim(), icon, color, visibleInList, balanceVisible });
         // El saldo no se edita directamente: se registra un ajuste con el saldo nuevo.
         if (balance !== account.balance) {
           await api.adjustBalance(account.id, { balance, note: "Ajuste manual desde la app" });
@@ -69,6 +71,10 @@ function Body({ account }: { account?: AccountView }) {
           icon,
           color,
         });
+        // El backend solo acepta la visibilidad al editar, y por defecto las dos están activas.
+        if (!visibleInList || !balanceVisible) {
+          await api.updateAccount(saved.id, { visibleInList, balanceVisible });
+        }
       }
       setAccountMeta(saved.id, { icon, color });
       await refreshAll();
@@ -131,6 +137,23 @@ function Body({ account }: { account?: AccountView }) {
               Si lo cambias se guarda como un ajuste en el historial de la cuenta.
             </p>
           )}
+        </div>
+        <div>
+          <SectionLabel>Visibilidad</SectionLabel>
+          <div className="flex flex-col gap-2">
+            <SwitchRow
+              label="Mostrar en el selector"
+              hint="Aparece al elegir la cuenta en la pantalla principal."
+              checked={visibleInList}
+              onChange={setVisibleInList}
+            />
+            <SwitchRow
+              label="Sumar al balance total"
+              hint="Su saldo se incluye en el balance total."
+              checked={balanceVisible}
+              onChange={setBalanceVisible}
+            />
+          </div>
         </div>
       </div>
 

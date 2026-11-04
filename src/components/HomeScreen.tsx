@@ -87,8 +87,10 @@ export function HomeScreen() {
     } catch {}
   }, [kind, view]);
 
-  // Si la cuenta guardada ya no existe se vuelve a "Total".
-  const account = accountId ? accountsById.get(accountId) : undefined;
+  // Si la cuenta guardada ya no existe o se ocultó del selector se vuelve a "Total".
+  const stored = accountId ? accountsById.get(accountId) : undefined;
+  const account = stored?.visibleInList ? stored : undefined;
+  const totalCount = accounts.filter((a) => a.balanceVisible).length;
   const effectiveAccountId = account ? accountId : null;
 
   const selectAccount = (id: string | null) => {
@@ -121,8 +123,13 @@ export function HomeScreen() {
   // El saldo viene del backend (cuentas). Aquí solo se calcula la variación del periodo.
   const balance = account ? account.balance : total;
   const net = useMemo(
-    () => (txs ?? []).reduce((acc, t) => acc + (t.type === "INCOME" ? t.amount : -t.amount), 0),
-    [txs],
+    () =>
+      (txs ?? []).reduce((acc, t) => {
+        // En "Total", los movimientos de una cuenta que no suma tampoco cuentan en la variación.
+        if (!account && accountsById.get(t.accountId)?.balanceVisible === false) return acc;
+        return acc + (t.type === "INCOME" ? t.amount : -t.amount);
+      }, 0),
+    [txs, account, accountsById],
   );
   const startBalance = balance - net;
   const pct = containsNow(period) && startBalance > 0 ? (net / startBalance) * 100 : null;
@@ -242,7 +249,7 @@ export function HomeScreen() {
           >
             <span className="size-2 shrink-0 rounded-full" style={{ background: account?.color ?? "#34d399" }} />
             <span className="truncate">
-              {account ? account.name : `Total · ${accounts.length} ${accounts.length === 1 ? "cuenta" : "cuentas"}`}
+              {account ? account.name : `Total · ${totalCount} ${totalCount === 1 ? "cuenta" : "cuentas"}`}
             </span>
             <ChevronDown className="size-4 shrink-0 text-muted" />
           </button>

@@ -145,7 +145,7 @@ export interface AccountInput {
 }
 
 /** Al editar no se puede tocar el saldo: se cambia con un ajuste (POST /accounts/:id/adjustments). */
-export type AccountUpdate = Partial<Omit<AccountInput, "balance">>;
+export type AccountUpdate = Partial<Omit<AccountInput, "balance">> & { visibleInList?: boolean; balanceVisible?: boolean };
 
 function qs(params: object): string {
   const sp = new URLSearchParams();

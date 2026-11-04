@@ -28,6 +28,10 @@ export interface Account {
   /** Saldo actual. Lo mantiene el backend con cada gasto, ingreso, transferencia o ajuste. */
   balance: number;
   isActive: boolean;
+  /** false: no aparece en el selector de cuentas de la pantalla principal. */
+  visibleInList: boolean;
+  /** false: su saldo no se suma al balance total. */
+  balanceVisible: boolean;
   icon?: string | null;
   color?: string | null;
   createdAt: string;

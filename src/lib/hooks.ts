@@ -49,11 +49,13 @@ export function useAccounts() {
             icon: knownIcon(a.icon) ?? m?.icon ?? defaultAccountIcon(a.type),
             color: (a.color && safeColor(a.color)) || m?.color || colorFor(a.id),
             balance: Number(a.balance ?? 0),
+            visibleInList: a.visibleInList !== false,
+            balanceVisible: a.balanceVisible !== false,
           };
         }),
     [swr.data, meta],
   );
-  const total = useMemo(() => accounts.reduce((acc, a) => acc + a.balance, 0), [accounts]);
+  const total = useMemo(() => accounts.reduce((acc, a) => (a.balanceVisible ? acc + a.balance : acc), 0), [accounts]);
   const byId = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   /** false hasta recibir las cuentas: así no se muestra un saldo 0 que no es real. */
   const loaded = swr.data !== undefined;
