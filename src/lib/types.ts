@@ -1,5 +1,5 @@
 export type TxType = "EXPENSE" | "INCOME";
-export type MovementType = "OPENING" | "ADJUSTMENT" | "TRANSFER";
+export type MovementType = "OPENING" | "ADJUSTMENT" | "TRANSFER" | "CLOSING";
 export type TxStatus = "UNCLASSIFIED" | "CLASSIFIED";
 export type TxSource = "MANUAL" | "APPLE_PAY" | "MBWAY" | "REVOLUT" | "BANK" | "OTHER";
 export type AccountType = "BANK" | "CASH" | "CARD" | "WALLET" | "SAVINGS" | "OTHER";
@@ -108,7 +108,7 @@ export interface TxInput {
 export interface Movement {
   id: string;
   type: MovementType;
-  /** OPENING y TRANSFER: positivo. ADJUSTMENT: con signo. */
+  /** OPENING y TRANSFER: positivo. ADJUSTMENT: con signo. CLOSING: siempre 0. */
   amount: number;
   currency: string;
   /** Cuenta afectada. En una transferencia, la cuenta de origen. */

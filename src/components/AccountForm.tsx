@@ -3,7 +3,7 @@
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { money, parseAmount } from "@/lib/format";
 import { refreshAll, useAccounts, type AccountView } from "@/lib/hooks";
 import { accountTypeForIcon, COLORS } from "@/lib/icons";
@@ -37,6 +37,8 @@ export function AccountForm({ id }: { id?: string }) {
   }
   return <Body />;
 }
+
+const HAS_BALANCE = "La cuenta aún tiene saldo. Transfiere los fondos a otra cuenta antes de eliminarla.";
 
 function Body({ account }: { account?: AccountView }) {
   const router = useRouter();
@@ -95,7 +97,9 @@ function Body({ account }: { account?: AccountView }) {
       toast("Cuenta eliminada");
       router.replace("/cuentas");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo eliminar", "error");
+      // 409: el saldo cambió desde que se cargó la pantalla.
+      const balanceLeft = e instanceof ApiError && e.status === 409;
+      toast(balanceLeft ? HAS_BALANCE : e instanceof Error ? e.message : "No se pudo eliminar", "error");
       setBusy(false);
       setConfirm(false);
     }
@@ -162,7 +166,7 @@ function Body({ account }: { account?: AccountView }) {
       </Button>
       {account && (
         <button
-          onClick={() => setConfirm(true)}
+          onClick={() => (account.balance !== 0 ? toast(HAS_BALANCE, "error") : setConfirm(true))}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-medium text-danger transition hover:bg-danger/10"
         >
           <Trash2 className="size-4" /> Eliminar cuenta
