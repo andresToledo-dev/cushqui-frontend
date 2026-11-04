@@ -44,3 +44,4 @@ next-env.d.ts
 # notas y mocks de trabajo (solo locales)
 Task.md
 mocks/
+docs/
