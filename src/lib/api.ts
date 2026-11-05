@@ -191,6 +191,11 @@ export const api = {
   updateTransaction: (id: string, body: Partial<TxInput>) =>
     request<Transaction>(`/transactions/${id}`, { method: "PATCH", body }),
   deleteTransaction: (id: string) => request<void>(`/transactions/${id}`, { method: "DELETE" }),
+  /** Movimientos que podrían ser la otra parte de una transferencia (tipo contrario, mismo importe, fechas cercanas). */
+  transferCandidates: (id: string) => request<Transaction[]>(`/transactions/${id}/transfer-candidates`),
+  /** Convierte un movimiento sin clasificar (y, si se indica, su otra parte) en una transferencia. Los borra. */
+  convertToTransfer: (id: string, body: { otherAccountId: string; note?: string } | { otherTransactionId: string }) =>
+    request<Movement>(`/transactions/${id}/convert-to-transfer`, { method: "POST", body }),
   classify: (id: string, categoryId: string) =>
     request<Transaction>(`/transactions/${id}/classify`, { method: "POST", body: { categoryId } }),
 

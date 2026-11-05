@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Scissors, Split, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Check, Scissors, Split, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
@@ -10,6 +10,7 @@ import type { Transaction, TxInput } from "@/lib/types";
 import { Screen } from "./AppShell";
 import { HOME_ACCOUNT_KEY } from "@/lib/prefs";
 import { splitDescription } from "@/lib/split";
+import { ConvertTransferModal } from "./ConvertTransferModal";
 import { SplitModal } from "./SplitModal";
 import { useToast } from "./Toast";
 import { BackHeader, Button, ConfirmModal, SectionLabel, SelectField, Spinner, Tabs, type SelectOption } from "./ui";
@@ -66,6 +67,7 @@ function FormBody({ tx }: { tx?: Transaction }) {
   const [date, setDate] = useState(toLocalInput(tx?.transactionDate ?? new Date().toISOString()));
   const [busy, setBusy] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Cuenta por defecto en movimientos nuevos.
@@ -330,6 +332,15 @@ function FormBody({ tx }: { tx?: Transaction }) {
           >
             <Split className="size-4" /> Dividir cuenta
           </button>
+          {tx && wasUnclassified && (
+            <button
+              type="button"
+              onClick={() => setConvertOpen(true)}
+              className="flex h-9 items-center gap-2 rounded-full bg-surface px-4 text-sm font-semibold transition hover:bg-surface-2"
+            >
+              <ArrowLeftRight className="size-4" /> Es transferencia
+            </button>
+          )}
         </div>
 
         <div className="mt-3 flex min-h-0 flex-1 flex-col gap-2.5">
@@ -396,6 +407,14 @@ function FormBody({ tx }: { tx?: Transaction }) {
         </Button>
       </div>
 
+      {tx && (
+        <ConvertTransferModal
+          open={convertOpen}
+          tx={tx}
+          onClose={() => setConvertOpen(false)}
+          onConverted={() => router.replace("/transacciones")}
+        />
+      )}
       <SplitModal
         open={splitOpen}
         total={amountNumber}
