@@ -2,21 +2,25 @@
 
 import { ArrowLeftRight, ChevronRight, History, Plus, Wallet } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { money } from "@/lib/format";
-import { useAccounts } from "@/lib/hooks";
+import { useAccounts, useTabScroll } from "@/lib/hooks";
 import { FixedScreen, SidebarToggle } from "./AppShell";
 import { TransferModal } from "./TransferModal";
 import { EmptyState, Fab, IconBadge, Spinner } from "./ui";
 
 export function AccountsScreen() {
-  const { accounts, total, isLoading, loaded } = useAccounts();
+  const { accounts, total, realTotal, isLoading, loaded } = useAccounts();
   const [transfer, setTransfer] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const { leaveOnLink } = useTabScroll("cuentas", listRef, "cuentas", loaded);
 
   return (
     <>
       <FixedScreen
         toggle={false}
+        listRef={listRef}
+        onListClickCapture={leaveOnLink}
         header={
           <>
             <div className="relative flex h-11 items-center justify-center">
@@ -27,6 +31,9 @@ export function AccountsScreen() {
               <p className="text-[11px] font-semibold tracking-[0.1em] text-muted uppercase">Balance total</p>
               <p className="num mt-1 text-[44px] leading-tight font-semibold">
                 {loaded ? money(total) : "—"} <span className="text-lg font-medium text-muted">EUR</span>
+              </p>
+              <p className="mt-0.5 text-xs text-muted" data-testid="real-balance">
+                Balance real: <span className="num">{loaded ? money(realTotal) : "—"} EUR</span>
               </p>
             </div>
 

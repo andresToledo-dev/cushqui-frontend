@@ -3,7 +3,7 @@
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { money, parseAmount } from "@/lib/format";
 import { refreshAll, useAccounts, type AccountView } from "@/lib/hooks";
 import { accountTypeForIcon, COLORS } from "@/lib/icons";
@@ -11,7 +11,7 @@ import { setAccountMeta } from "@/lib/meta";
 import { Screen } from "./AppShell";
 import { ColorPicker, IconPicker } from "./IconColorPicker";
 import { useToast } from "./Toast";
-import { BackHeader, Button, ConfirmModal, IconBadge, Input, SectionLabel, Spinner } from "./ui";
+import { BackHeader, Button, ConfirmModal, IconBadge, Input, SectionLabel, Spinner, SwitchRow } from "./ui";
 
 export function AccountForm({ id }: { id?: string }) {
   const { byId, isLoading } = useAccounts();
@@ -38,6 +38,8 @@ export function AccountForm({ id }: { id?: string }) {
   return <Body />;
 }
 
+const HAS_BALANCE = "La cuenta aún tiene saldo. Transfiere los fondos a otra cuenta antes de eliminarla.";
+
 function Body({ account }: { account?: AccountView }) {
   const router = useRouter();
   const toast = useToast();
@@ -45,6 +47,8 @@ function Body({ account }: { account?: AccountView }) {
   const [icon, setIcon] = useState(account?.icon ?? "banknote");
   const [color, setColor] = useState(account?.color ?? COLORS[3]);
   const [balanceText, setBalanceText] = useState(account ? money(account.balance) : "");
+  const [visibleInList, setVisibleInList] = useState(account?.visibleInList ?? true);
+  const [balanceVisible, setBalanceVisible] = useState(account?.balanceVisible ?? true);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
 
@@ -55,7 +59,7 @@ function Body({ account }: { account?: AccountView }) {
       const balance = Math.round(parseAmount(balanceText) * 100) / 100;
       let saved;
       if (account) {
-        saved = await api.updateAccount(account.id, { name: name.trim(), icon, color });
+        saved = await api.updateAccount(account.id, { name: name.trim(), icon, color, visibleInList, balanceVisible });
         // El saldo no se edita directamente: se registra un ajuste con el saldo nuevo.
         if (balance !== account.balance) {
           await api.adjustBalance(account.id, { balance, note: "Ajuste manual desde la app" });
@@ -69,6 +73,10 @@ function Body({ account }: { account?: AccountView }) {
           icon,
           color,
         });
+        // El backend solo acepta la visibilidad al editar, y por defecto las dos están activas.
+        if (!visibleInList || !balanceVisible) {
+          await api.updateAccount(saved.id, { visibleInList, balanceVisible });
+        }
       }
       setAccountMeta(saved.id, { icon, color });
       await refreshAll();
@@ -89,7 +97,9 @@ function Body({ account }: { account?: AccountView }) {
       toast("Cuenta eliminada");
       router.replace("/cuentas");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo eliminar", "error");
+      // 409: el saldo cambió desde que se cargó la pantalla.
+      const balanceLeft = e instanceof ApiError && e.status === 409;
+      toast(balanceLeft ? HAS_BALANCE : e instanceof Error ? e.message : "No se pudo eliminar", "error");
       setBusy(false);
       setConfirm(false);
     }
@@ -132,6 +142,23 @@ function Body({ account }: { account?: AccountView }) {
             </p>
           )}
         </div>
+        <div>
+          <SectionLabel>Visibilidad</SectionLabel>
+          <div className="flex flex-col gap-2">
+            <SwitchRow
+              label="Mostrar en el selector"
+              hint="Aparece al elegir la cuenta en la pantalla principal."
+              checked={visibleInList}
+              onChange={setVisibleInList}
+            />
+            <SwitchRow
+              label="Sumar al balance total"
+              hint="Su saldo se incluye en el balance total."
+              checked={balanceVisible}
+              onChange={setBalanceVisible}
+            />
+          </div>
+        </div>
       </div>
 
       <Button className="mt-8 w-full" onClick={save} disabled={busy || !name.trim()}>
@@ -139,7 +166,7 @@ function Body({ account }: { account?: AccountView }) {
       </Button>
       {account && (
         <button
-          onClick={() => setConfirm(true)}
+          onClick={() => (account.balance !== 0 ? toast(HAS_BALANCE, "error") : setConfirm(true))}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-medium text-danger transition hover:bg-danger/10"
         >
           <Trash2 className="size-4" /> Eliminar cuenta

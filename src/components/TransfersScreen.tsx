@@ -20,9 +20,10 @@ const TYPE_FILTERS: [TypeFilter, string][] = [
   ["TRANSFER", "Transferencias"],
   ["ADJUSTMENT", "Ajustes"],
   ["OPENING", "Aperturas"],
+  ["CLOSING", "Cierres"],
 ];
 
-/** Historial de movimientos de cuenta: aperturas, ajustes y transferencias. */
+/** Historial de movimientos de cuenta: aperturas, ajustes, transferencias y cierres. */
 export function TransfersScreen() {
   const [period, setPeriod] = usePeriod();
   const [type, setType] = useState<TypeFilter>("ALL");
@@ -92,7 +93,7 @@ export function TransfersScreen() {
             <EmptyState
               icon={<ArrowLeftRight className="size-6" />}
               title="Sin movimientos en este periodo"
-              text="Aquí aparecen las aperturas de cuenta, los ajustes de saldo y las transferencias."
+              text="Aquí aparecen las aperturas y cierres de cuenta, los ajustes de saldo y las transferencias."
             />
           ) : (
             groups.map((g) => (
@@ -159,7 +160,7 @@ function MovementRow({
     amount = <span className={m.amount >= 0 ? "text-ok" : "text-danger"}>{`${m.amount >= 0 ? "+" : "-"}${money(Math.abs(m.amount))}`}</span>;
   } else {
     title = <span className="truncate">{m.account.name}</span>;
-    detail = ["Apertura de cuenta", time, m.note].filter(Boolean).join(" · ");
+    detail = [m.type === "CLOSING" ? "Cierre de cuenta" : "Apertura de cuenta", time, m.note].filter(Boolean).join(" · ");
     amount = money(m.amount);
   }
 

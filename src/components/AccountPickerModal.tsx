@@ -33,7 +33,9 @@ function PickerBody({
   const [choice, setChoice] = useState<string>(value ?? "__total");
   const rows = [
     { id: "__total", name: "Total", icon: "archive", color: "#34d399", balance: total },
-    ...accounts.map((a) => ({ id: a.id, name: a.name, icon: a.icon, color: a.color, balance: a.balance })),
+    ...accounts
+      .filter((a) => a.visibleInList)
+      .map((a) => ({ id: a.id, name: a.name, icon: a.icon, color: a.color, balance: a.balance })),
   ];
 
   return (

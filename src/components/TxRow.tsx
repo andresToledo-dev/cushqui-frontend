@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronRight, Scissors } from "lucide-react";
+import { Check, ChevronRight, Scissors } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef, type MouseEvent, type PointerEvent } from "react";
 import { signedMoney, splitInfo, timeLabel } from "@/lib/format";
 import type { AccountView, CategoryView } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
@@ -14,17 +15,77 @@ export function txHref(tx: Transaction): string {
   return tx.status === "UNCLASSIFIED" ? `/transacciones/${tx.id}/editar` : `/transacciones/${tx.id}`;
 }
 
+/**
+ * Pulsación larga (dedo o ratón): llama a `onLongPress` a los 500 ms si el puntero no se ha movido,
+ * para que hacer scroll no la active. Evita el clic que llega al soltar y el menú del enlace.
+ */
+function useLongPress(onLongPress?: () => void) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const fired = useRef(false);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  if (!onLongPress) return {};
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  return {
+    onPointerDown: (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      fired.current = false;
+      origin.current = { x: e.clientX, y: e.clientY };
+      clear();
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        fired.current = true;
+        onLongPress();
+      }, 500);
+    },
+    onPointerMove: (e: PointerEvent) => {
+      const o = origin.current;
+      if (o && Math.hypot(e.clientX - o.x, e.clientY - o.y) > 10) clear();
+    },
+    onPointerUp: clear,
+    onPointerCancel: clear,
+    onPointerLeave: clear,
+    onClickCapture: (e: MouseEvent) => {
+      if (!fired.current) return;
+      fired.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    onContextMenu: (e: MouseEvent) => e.preventDefault(),
+  };
+}
+
 export function TxRow({
   tx,
   href = txHref(tx),
   category,
   account,
+  selecting = false,
+  selected = false,
+  onLongPress,
+  onToggle,
 }: {
   tx: Transaction;
   href?: string;
   category?: CategoryView;
   account?: AccountView;
+  /** Modo selección: la fila marca o desmarca en lugar de abrir el movimiento. */
+  selecting?: boolean;
+  selected?: boolean;
+  onLongPress?: () => void;
+  onToggle?: () => void;
 }) {
+  const press = useLongPress(onLongPress);
   const unclassified = tx.status === "UNCLASSIFIED";
   const split = splitInfo(tx.description);
   const { total, amount: originalTotal } = split;
@@ -39,11 +100,8 @@ export function TxRow({
 
   const meta = [timeLabel(tx.transactionDate), unclassified ? text || null : accountName].filter(Boolean).join(" · ");
 
-  return (
-    <Link
-      href={href}
-      className="-mx-2 flex items-center gap-3 rounded-2xl px-2 py-3.5 transition hover:bg-surface/70 active:bg-surface"
-    >
+  const content = (
+    <>
       {unclassified ? (
         <IconBadge icon="card" color={NEUTRAL} />
       ) : (
@@ -71,6 +129,35 @@ export function TxRow({
           </span>
         )}
       </div>
+    </>
+  );
+
+  const rowClass = "-mx-2 flex items-center gap-3 rounded-2xl px-2 py-3.5 transition hover:bg-surface/70 select-none [-webkit-touch-callout:none]";
+
+  if (selecting) {
+    return (
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={selected}
+        onClick={onToggle}
+        className={`${rowClass} w-[calc(100%+1rem)] text-left`}
+      >
+        <span
+          className={`grid size-5 shrink-0 place-items-center rounded-full border-2 transition ${
+            selected ? "border-accent bg-accent text-ink" : "border-cream/60"
+          }`}
+        >
+          {selected && <Check className="size-3" strokeWidth={3} />}
+        </span>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href} {...press} className={`${rowClass} active:bg-surface`}>
+      {content}
       <ChevronRight className="size-4 shrink-0 text-faint" />
     </Link>
   );

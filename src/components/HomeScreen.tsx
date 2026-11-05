@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { money } from "@/lib/format";
-import { useAccounts, useCategories, useTransactions, type CategoryView } from "@/lib/hooks";
+import { useAccounts, useCategories, useTabScroll, useTransactions, type CategoryView } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
 import { containsNow, periodRange, thisPeriodWord } from "@/lib/period";
 import { usePeriod } from "@/lib/period-store";
@@ -87,8 +87,10 @@ export function HomeScreen() {
     } catch {}
   }, [kind, view]);
 
-  // Si la cuenta guardada ya no existe se vuelve a "Total".
-  const account = accountId ? accountsById.get(accountId) : undefined;
+  // Si la cuenta guardada ya no existe o se ocultó del selector se vuelve a "Total".
+  const stored = accountId ? accountsById.get(accountId) : undefined;
+  const account = stored?.visibleInList ? stored : undefined;
+  const totalCount = accounts.filter((a) => a.balanceVisible).length;
   const effectiveAccountId = account ? accountId : null;
 
   const selectAccount = (id: string | null) => {
@@ -121,8 +123,13 @@ export function HomeScreen() {
   // El saldo viene del backend (cuentas). Aquí solo se calcula la variación del periodo.
   const balance = account ? account.balance : total;
   const net = useMemo(
-    () => (txs ?? []).reduce((acc, t) => acc + (t.type === "INCOME" ? t.amount : -t.amount), 0),
-    [txs],
+    () =>
+      (txs ?? []).reduce((acc, t) => {
+        // En "Total", los movimientos de una cuenta que no suma tampoco cuentan en la variación.
+        if (!account && accountsById.get(t.accountId)?.balanceVisible === false) return acc;
+        return acc + (t.type === "INCOME" ? t.amount : -t.amount);
+      }, 0),
+    [txs, account, accountsById],
   );
   const startBalance = balance - net;
   const pct = containsNow(period) && startBalance > 0 ? (net / startBalance) * 100 : null;
@@ -186,6 +193,7 @@ export function HomeScreen() {
   // El gráfico es parte del contenido desplazable: sube con el dedo sin saltos. Cuando sale de la vista,
   // la cabecera fija de la lista muestra una barra resumen (de altura constante, así nada se mueve).
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { remember, leave, leaveOnLink } = useTabScroll("inicio", scrollRef, JSON.stringify([kind, period, effectiveAccountId]), txs !== undefined);
   const chartRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = scrollRef.current;
@@ -205,10 +213,12 @@ export function HomeScreen() {
   }, [chart]);
 
   /* ----- Navegación ----- */
-  const openList = (catId: string | null, subId?: string | null) =>
+  const openList = (catId: string | null, subId?: string | null) => {
+    leave();
     router.push(
       categoryTransactionsHref({ categoryId: catId, subcategoryId: subId, kind, accountId: effectiveAccountId }),
     );
+  };
 
   const openRow = (id: string) => {
     if (view.level === "categories") {
@@ -242,7 +252,7 @@ export function HomeScreen() {
           >
             <span className="size-2 shrink-0 rounded-full" style={{ background: account?.color ?? "#34d399" }} />
             <span className="truncate">
-              {account ? account.name : `Total · ${accounts.length} ${accounts.length === 1 ? "cuenta" : "cuentas"}`}
+              {account ? account.name : `Total · ${totalCount} ${totalCount === 1 ? "cuenta" : "cuentas"}`}
             </span>
             <ChevronDown className="size-4 shrink-0 text-muted" />
           </button>
@@ -261,6 +271,7 @@ export function HomeScreen() {
           className="mt-3"
           value={kind}
           onChange={(k) => {
+            remember();
             setKind(k);
             setView({ level: "categories" });
           }}
@@ -288,7 +299,7 @@ export function HomeScreen() {
       </div>
 
       {/* Contenido desplazable: gráfico + lista */}
-      <div ref={scrollRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-none">
+      <div ref={scrollRef} onClickCapture={leaveOnLink} className="no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-none">
         <div className="mx-auto w-full max-w-xl px-4 sm:px-6">
           <div ref={chartRef}>
             {chart === "donut" ? (

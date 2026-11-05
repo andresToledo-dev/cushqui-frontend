@@ -401,6 +401,39 @@ export function SectionLabel({ children, className = "" }: { children: ReactNode
   return <p className={`mb-2.5 text-[11px] font-semibold tracking-[0.08em] text-muted uppercase ${className}`}>{children}</p>;
 }
 
+export function SwitchRow({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3 rounded-2xl bg-surface px-4 py-3">
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium">{label}</span>
+        <span className="mt-0.5 block text-xs text-muted">{hint}</span>
+      </span>
+      <input
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer sr-only"
+      />
+      <span className="relative h-6 w-10 shrink-0 rounded-full bg-surface-2 transition peer-checked:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent">
+        <span
+          className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-cream transition-transform ${checked ? "translate-x-4" : ""}`}
+        />
+      </span>
+    </label>
+  );
+}
+
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input

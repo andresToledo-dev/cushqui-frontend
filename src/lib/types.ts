@@ -1,5 +1,5 @@
 export type TxType = "EXPENSE" | "INCOME";
-export type MovementType = "OPENING" | "ADJUSTMENT" | "TRANSFER";
+export type MovementType = "OPENING" | "ADJUSTMENT" | "TRANSFER" | "CLOSING";
 export type TxStatus = "UNCLASSIFIED" | "CLASSIFIED";
 export type TxSource = "MANUAL" | "APPLE_PAY" | "MBWAY" | "REVOLUT" | "BANK" | "OTHER";
 export type AccountType = "BANK" | "CASH" | "CARD" | "WALLET" | "SAVINGS" | "OTHER";
@@ -28,6 +28,10 @@ export interface Account {
   /** Saldo actual. Lo mantiene el backend con cada gasto, ingreso, transferencia o ajuste. */
   balance: number;
   isActive: boolean;
+  /** false: no aparece en el selector de cuentas de la pantalla principal. */
+  visibleInList: boolean;
+  /** false: su saldo no se suma al balance total. */
+  balanceVisible: boolean;
   icon?: string | null;
   color?: string | null;
   createdAt: string;
@@ -104,7 +108,7 @@ export interface TxInput {
 export interface Movement {
   id: string;
   type: MovementType;
-  /** OPENING y TRANSFER: positivo. ADJUSTMENT: con signo. */
+  /** OPENING y TRANSFER: positivo. ADJUSTMENT: con signo. CLOSING: siempre 0. */
   amount: number;
   currency: string;
   /** Cuenta afectada. En una transferencia, la cuenta de origen. */

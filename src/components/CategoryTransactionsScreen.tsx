@@ -1,9 +1,9 @@
 "use client";
 
 import { Inbox } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { dayGroupKey, dayLabel, money } from "@/lib/format";
-import { useAccounts, useCategories, useTransactions } from "@/lib/hooks";
+import { useAccounts, useCategories, useTabScroll, useTransactions } from "@/lib/hooks";
 import { NEUTRAL } from "@/lib/icons";
 import { periodRange } from "@/lib/period";
 import { usePeriod } from "@/lib/period-store";
@@ -11,6 +11,7 @@ import type { Transaction, TxType } from "@/lib/types";
 import { FixedScreen } from "./AppShell";
 import { PeriodFilter } from "./PeriodFilter";
 import { TxRow } from "./TxRow";
+import { DayToggle, SelectionBar, useTxSelection } from "./TxSelection";
 import { BackHeader, EmptyState, Fab, IconBadge, Spinner } from "./ui";
 
 /** Valores de la URL para "Sin clasificar" y "Sin subcategoría". */
@@ -83,6 +84,11 @@ export function CategoryTransactionsScreen({
     return [...map.values()];
   }, [txs]);
 
+  const listRef = useRef<HTMLDivElement>(null);
+  const scrollKey = JSON.stringify([categoryId, subcategoryId, kind, accountId, period]);
+  const { leaveOnLink } = useTabScroll("categoria-movimientos", listRef, scrollKey, data !== undefined);
+  const sel = useTxSelection(scrollKey);
+
   const category = unclassified ? undefined : categoriesById.get(categoryId);
   const categoryName = unclassified ? "Sin clasificar" : (category?.name ?? txs[0]?.categoryName ?? "Categoría");
   const subName =
@@ -100,9 +106,17 @@ export function CategoryTransactionsScreen({
     <>
       <FixedScreen
         toggle={false}
+        listRef={listRef}
+        onListClickCapture={leaveOnLink}
         header={
           <div className="border-b border-line pb-3">
-            <BackHeader title={<span className="block truncate">{title}</span>} backHref="/" />
+            {sel.selected ? (
+              <div className="mb-3 py-1.5">
+                <SelectionBar count={sel.selected.size} onCancel={sel.cancel} onDelete={sel.askDelete} />
+              </div>
+            ) : (
+              <BackHeader title={<span className="block truncate">{title}</span>} backHref="/" />
+            )}
             <div className="flex items-center gap-4 rounded-2xl bg-surface p-4">
               <IconBadge
                 icon={unclassified ? "card" : (category?.icon ?? "archive")}
@@ -138,7 +152,16 @@ export function CategoryTransactionsScreen({
             <section key={dayGroupKey(group[0].transactionDate)} className="mt-3">
               <div className="flex items-center justify-between py-2 text-xs">
                 <span className="font-semibold tracking-wide text-cream/70">{dayLabel(group[0].transactionDate)}</span>
-                <span className="num text-faint">{money(sum(group))} EUR</span>
+                {sel.selected ? (
+                  <DayToggle
+                    ids={group.map((t) => t.id)}
+                    selected={sel.selected}
+                    label={dayLabel(group[0].transactionDate)}
+                    onToggle={sel.toggleDay}
+                  />
+                ) : (
+                  <span className="num text-faint">{money(sum(group))} EUR</span>
+                )}
               </div>
               <div className="divide-y divide-line">
                 {group.map((t) => (
@@ -147,6 +170,10 @@ export function CategoryTransactionsScreen({
                     tx={t}
                     category={t.categoryId ? categoriesById.get(t.categoryId) : undefined}
                     account={accountsById.get(t.accountId)}
+                    selecting={sel.selected !== null}
+                    selected={sel.selected?.has(t.id)}
+                    onLongPress={() => sel.start(t.id)}
+                    onToggle={() => sel.toggle(t.id)}
                   />
                 ))}
               </div>
@@ -154,7 +181,8 @@ export function CategoryTransactionsScreen({
           ))
         )}
       </FixedScreen>
-      <Fab />
+      {!sel.selected && <Fab />}
+      {sel.dialogs}
     </>
   );
 }
