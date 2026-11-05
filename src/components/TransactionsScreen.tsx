@@ -12,6 +12,7 @@ import type { Paginated, Transaction, TxFilters } from "@/lib/types";
 import { FixedScreen, SidebarToggle } from "./AppShell";
 import { PeriodFilter } from "./PeriodFilter";
 import { TxRow } from "./TxRow";
+import { DayToggle, SelectionBar, useTxSelection } from "./TxSelection";
 import { Button, EmptyState, Fab, Modal, SelectField, Spinner, Tabs } from "./ui";
 
 export type TxTab = "gastos" | "ingresos" | "clasificar";
@@ -36,7 +37,7 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
   const { byId: categoriesById } = useCategories();
 
   const filters = filtersFor(tab, accountId, period);
-  const { data, size, setSize, isLoading, isValidating } = useSWRInfinite<Paginated<Transaction>>(
+  const { data, size, setSize, isLoading, isValidating, mutate } = useSWRInfinite<Paginated<Transaction>>(
     (index, prev) => {
       if (prev && index + 1 > prev.meta.totalPages) return null;
       return ["transactions-page", JSON.stringify(filters), index + 1];
@@ -64,7 +65,21 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
   const listRef = useRef<HTMLDivElement>(null);
   const { remember, leaveOnLink } = useTabScroll(SCREEN, listRef, JSON.stringify(filters), data !== undefined, { tab, accountId });
 
+  const sel = useTxSelection(JSON.stringify(filters), () => mutate());
+
   const filteredAccount = accountId ? accountsById.get(accountId) : undefined;
+  const filterButton = (
+    <button
+      onClick={() => setFilterOpen(true)}
+      aria-label="Filtrar por cuenta"
+      className={`relative -mr-1 grid size-11 place-items-center rounded-xl transition hover:bg-surface ${
+        accountId ? "text-accent" : "text-cream/80"
+      }`}
+    >
+      <SlidersHorizontal className="size-5" />
+      {accountId && <span className="absolute top-2 right-2 size-2 rounded-full bg-accent" />}
+    </button>
+  );
 
   return (
     <>
@@ -74,20 +89,15 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
         onListClickCapture={leaveOnLink}
         header={
           <>
-            <div className="flex items-center gap-3">
-              <SidebarToggle />
-              <h1 className="flex-1 truncate font-display text-2xl font-semibold">Transacciones</h1>
-              <button
-                onClick={() => setFilterOpen(true)}
-                aria-label="Filtrar por cuenta"
-                className={`relative -mr-1 grid size-11 place-items-center rounded-xl transition hover:bg-surface ${
-                  accountId ? "text-accent" : "text-cream/80"
-                }`}
-              >
-                <SlidersHorizontal className="size-5" />
-                {accountId && <span className="absolute top-2 right-2 size-2 rounded-full bg-accent" />}
-              </button>
-            </div>
+            {sel.selected ? (
+              <SelectionBar count={sel.selected.size} onCancel={sel.cancel} onDelete={sel.askDelete} extra={filterButton} />
+            ) : (
+              <div className="flex items-center gap-3">
+                <SidebarToggle />
+                <h1 className="flex-1 truncate font-display text-2xl font-semibold">Transacciones</h1>
+                {filterButton}
+              </div>
+            )}
 
             {filteredAccount && (
               <button
@@ -160,17 +170,30 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
               <section key={dayGroupKey(group[0].transactionDate)} className="mt-4 first:mt-0">
                 <div className="flex items-center justify-between py-2 text-xs">
                   <span className="font-semibold tracking-wide text-cream/70">{dayLabel(group[0].transactionDate)}</span>
-                  <span className="text-faint">
-                    {group.length} {group.length === 1 ? "movimiento" : "movimientos"}
-                  </span>
+                  {sel.selected ? (
+                    <DayToggle
+                      ids={group.map((t) => t.id)}
+                      selected={sel.selected}
+                      label={dayLabel(group[0].transactionDate)}
+                      onToggle={sel.toggleDay}
+                    />
+                  ) : (
+                    <span className="text-faint">
+                      {group.length} {group.length === 1 ? "movimiento" : "movimientos"}
+                    </span>
+                  )}
                 </div>
                 <div className="divide-y divide-line">
                   {group.map((t) => (
                     <TxRow
                       key={t.id}
                       tx={t}
-                                            category={t.categoryId ? categoriesById.get(t.categoryId) : undefined}
+                      category={t.categoryId ? categoriesById.get(t.categoryId) : undefined}
                       account={accountsById.get(t.accountId)}
+                      selecting={sel.selected !== null}
+                      selected={sel.selected?.has(t.id)}
+                      onLongPress={() => sel.start(t.id)}
+                      onToggle={() => sel.toggle(t.id)}
                     />
                   ))}
                 </div>
@@ -185,7 +208,8 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
           )}
         </div>
       </FixedScreen>
-      <Fab />
+      {!sel.selected && <Fab />}
+      {sel.dialogs}
 
       <Modal open={filterOpen} onClose={() => setFilterOpen(false)} title="Filtrar" align="left">
         <p className="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted uppercase">Cuenta</p>
