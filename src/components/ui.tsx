@@ -3,7 +3,7 @@
 import { ArrowLeft, Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
 import { AppIcon } from "@/lib/icons";
 
 /* ---------- Icono con fondo de color ---------- */
@@ -431,6 +431,53 @@ export function SwitchRow({
         />
       </span>
     </label>
+  );
+}
+
+/** Botón X que borra un campo de texto. Va superpuesto dentro del campo (el padre debe ser `relative`). */
+export function ClearButton({ label, onClear, className = "" }: { label: string; onClear: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      aria-label={label}
+      className={`absolute right-2 grid size-7 place-items-center rounded-full bg-surface-3 text-cream/80 transition hover:text-cream ${className}`}
+    >
+      <X className="size-4" />
+    </button>
+  );
+}
+
+/**
+ * Input de una línea con botón para borrarlo entero. El botón solo aparece si hay texto, y el texto deja
+ * hueco a la derecha para no quedar debajo. Al borrar, el foco vuelve al campo.
+ */
+export function ClearableInput({
+  value,
+  onValueChange,
+  clearLabel,
+  className = "",
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
+  value: string;
+  onValueChange: (value: string) => void;
+  clearLabel: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <div className="relative">
+      <input {...props} ref={ref} value={value} onChange={(e) => onValueChange(e.target.value)} className={`${className} ${value ? "pr-11!" : ""}`} />
+      {value && (
+        <ClearButton
+          label={clearLabel}
+          className="top-1/2 -translate-y-1/2"
+          onClear={() => {
+            onValueChange("");
+            ref.current?.focus();
+          }}
+        />
+      )}
+    </div>
   );
 }
 

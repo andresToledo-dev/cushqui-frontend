@@ -2,7 +2,7 @@
 
 import { ArrowLeftRight, Check, Scissors, Split, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { fromLocalInput, money, parseAmount, splitInfo, toLocalInput, withSplitMark } from "@/lib/format";
 import { refreshAll, useAccounts, useCategories, useTransaction } from "@/lib/hooks";
@@ -10,10 +10,11 @@ import type { Transaction, TxInput } from "@/lib/types";
 import { Screen } from "./AppShell";
 import { HOME_ACCOUNT_KEY } from "@/lib/prefs";
 import { splitDescription } from "@/lib/split";
+import { categoryOptionsFor, resolveCategoryPick, subcategoryOptionsFor } from "./categoryOptions";
 import { ConvertTransferModal } from "./ConvertTransferModal";
 import { SplitModal } from "./SplitModal";
 import { useToast } from "./Toast";
-import { BackHeader, Button, ConfirmModal, SectionLabel, SelectField, Spinner, Tabs, type SelectOption } from "./ui";
+import { BackHeader, Button, ClearableInput, ClearButton, ConfirmModal, SectionLabel, SelectField, Spinner, Tabs, type SelectOption } from "./ui";
 
 type Kind = "EXPENSE" | "INCOME";
 
@@ -64,6 +65,7 @@ function FormBody({ tx }: { tx?: Transaction }) {
   const [subcategoryId, setSubcategoryId] = useState<string | null>(tx?.subcategoryId ?? null);
   const [merchant, setMerchant] = useState(tx?.merchant ?? "");
   const [description, setDescription] = useState(original.text);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [date, setDate] = useState(toLocalInput(tx?.transactionDate ?? new Date().toISOString()));
   const [busy, setBusy] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
@@ -88,42 +90,13 @@ function FormBody({ tx }: { tx?: Transaction }) {
   }));
 
   // Categorías del tipo actual con sus subcategorías anidadas.
-  const categoryOptions = useMemo<SelectOption[]>(() => {
-    const list = categories.filter((c) => c.kind === type || c.id === categoryId);
-    return list.flatMap((c) => [
-      { value: c.id, label: c.name, icon: c.icon, color: c.color },
-      ...c.subcategories.map((s) => ({
-        value: s.id,
-        label: s.name,
-        icon: c.icon,
-        color: c.color,
-        indent: true,
-        gradient: true,
-        group: c.name,
-      })),
-    ]);
-  }, [categories, type, categoryId]);
-
-  const subOptions: SelectOption[] = (category?.subcategories ?? []).map((s) => ({
-    value: s.id,
-    label: s.name,
-    icon: s.icon,
-    color: s.color,
-    gradient: true,
-  }));
+  const categoryOptions = useMemo(() => categoryOptionsFor(categories, type, categoryId), [categories, type, categoryId]);
+  const subOptions = subcategoryOptionsFor(category);
 
   const pickCategory = (value: string | null) => {
-    const picked = value ? categoriesById.get(value) : undefined;
-    if (!picked) {
-      setCategoryId(null);
-      setSubcategoryId(null);
-    } else if (picked.parentId) {
-      setCategoryId(picked.parentId);
-      setSubcategoryId(picked.id);
-    } else {
-      setCategoryId(picked.id);
-      if (!picked.subcategories.some((s) => s.id === subcategoryId)) setSubcategoryId(null);
-    }
+    const next = resolveCategoryPick(categoriesById, value, subcategoryId);
+    setCategoryId(next.categoryId);
+    setSubcategoryId(next.subcategoryId);
   };
 
   const amountNumber = parseAmount(amount);
@@ -144,7 +117,8 @@ function FormBody({ tx }: { tx?: Transaction }) {
       amount: Math.round(value * 100) / 100,
       accountId: effectiveAccountId,
       currency: accountsById.get(effectiveAccountId)?.currency ?? "EUR",
-      merchant: merchant.trim() || undefined,
+      // Vacío se envía vacío: undefined en el PATCH significaría "no cambiar" y no se podría borrar el concepto.
+      merchant: merchant.trim(),
       description: keepMark,
       categoryId: categoryId ?? null,
       subcategoryId: subcategoryId ?? null,
@@ -157,6 +131,7 @@ function FormBody({ tx }: { tx?: Transaction }) {
     ...p,
     categoryId: p.categoryId ?? undefined,
     subcategoryId: p.subcategoryId ?? undefined,
+    merchant: p.merchant || undefined,
     description: p.description || undefined,
   });
 
@@ -379,9 +354,10 @@ function FormBody({ tx }: { tx?: Transaction }) {
           </div>
           <div className="shrink-0">
             <SectionLabel className="mb-1 [@media(max-height:720px)]:hidden">Comercio o concepto</SectionLabel>
-            <input
+            <ClearableInput
               value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
+              onValueChange={setMerchant}
+              clearLabel="Borrar concepto"
               placeholder="Comercio o concepto"
               className={fieldClass}
             />
@@ -392,13 +368,29 @@ function FormBody({ tx }: { tx?: Transaction }) {
           </div>
           <div className="shrink-0">
             <SectionLabel className="mb-1 [@media(max-height:720px)]:hidden">Descripción</SectionLabel>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descripción"
-              rows={2}
-              className="no-scrollbar h-[4.75rem] w-full resize-none [@media(max-height:720px)]:h-12 rounded-2xl border border-line bg-surface px-4 py-2.5 text-base leading-6 outline-none placeholder:text-faint focus:border-cream/30"
-            />
+            <div className="relative">
+              <textarea
+                ref={descriptionRef}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Descripción"
+                rows={2}
+                className={`no-scrollbar h-[4.75rem] w-full resize-none [@media(max-height:720px)]:h-12 rounded-2xl border border-line bg-surface py-2.5 pl-4 text-base leading-6 outline-none placeholder:text-faint focus:border-cream/30 ${
+                  description ? "pr-11" : "pr-4"
+                }`}
+              />
+              {/* Solo con texto: borra toda la descripción (la marca de "Fraccionado" se conserva al guardar). */}
+              {description && (
+                <ClearButton
+                  label="Borrar descripción"
+                  className="top-2"
+                  onClear={() => {
+                    setDescription("");
+                    descriptionRef.current?.focus();
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
 

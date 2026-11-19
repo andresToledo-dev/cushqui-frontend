@@ -65,7 +65,7 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
   const listRef = useRef<HTMLDivElement>(null);
   const { remember, leaveOnLink } = useTabScroll(SCREEN, listRef, JSON.stringify(filters), data !== undefined, { tab, accountId });
 
-  const sel = useTxSelection(JSON.stringify(filters), () => mutate());
+  const sel = useTxSelection(JSON.stringify(filters), () => mutate(), items);
 
   const filteredAccount = accountId ? accountsById.get(accountId) : undefined;
   const filterButton = (
@@ -90,7 +90,13 @@ export function TransactionsScreen({ initialTab = "gastos" }: { initialTab?: TxT
         header={
           <>
             {sel.selected ? (
-              <SelectionBar count={sel.selected.size} onCancel={sel.cancel} onDelete={sel.askDelete} extra={filterButton} />
+              <SelectionBar
+                count={sel.selected.size}
+                onCancel={sel.cancel}
+                onCategory={sel.askCategory}
+                onDelete={sel.askDelete}
+                extra={filterButton}
+              />
             ) : (
               <div className="flex items-center gap-3">
                 <SidebarToggle />

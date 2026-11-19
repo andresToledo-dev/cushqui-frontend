@@ -8,7 +8,7 @@ import { dayLabel, money, signedMoney, timeLabel } from "@/lib/format";
 import { refreshAll, useAccounts } from "@/lib/hooks";
 import type { Transaction } from "@/lib/types";
 import { useToast } from "./Toast";
-import { Button, ConfirmModal, Modal, SectionLabel, SelectField, Spinner } from "./ui";
+import { Button, ClearableInput, ConfirmModal, Modal, SectionLabel, SelectField, Spinner } from "./ui";
 
 const fieldClass =
   "h-12 w-full rounded-2xl border border-line bg-surface px-4 text-base outline-none placeholder:text-faint focus:border-cream/30";
@@ -65,7 +65,7 @@ function ConvertBody({ tx, onClose, onConverted }: { tx: Transaction; onClose: (
     try {
       await api.convertToTransfer(
         tx.id,
-        pickCandidates ? { otherTransactionId: candidateId! } : { otherAccountId: otherAccountId!, note: note.trim() || undefined },
+        pickCandidates ? { otherTransactionId: candidateId! } : { otherAccountId: otherAccountId!, note: note.trim() },
       );
       await refreshAll();
       toast("Transferencia creada");
@@ -147,7 +147,15 @@ function ConvertBody({ tx, onClose, onConverted }: { tx: Transaction; onClose: (
             </div>
             <div>
               <SectionLabel>Nota</SectionLabel>
-              <input value={note} maxLength={255} onChange={(e) => setNote(e.target.value)} placeholder="Nota" aria-label="Nota" className={fieldClass} />
+              <ClearableInput
+                value={note}
+                maxLength={255}
+                onValueChange={setNote}
+                clearLabel="Borrar nota"
+                placeholder="Nota"
+                aria-label="Nota"
+                className={fieldClass}
+              />
             </div>
             {manual && (
               <button type="button" onClick={() => setManual(false)} className="self-start text-sm font-medium text-accent hover:underline">

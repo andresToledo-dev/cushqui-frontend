@@ -7,7 +7,7 @@ import { fromLocalInput, money, parseAmount, toLocalInput } from "@/lib/format";
 import { refreshAll, useAccounts } from "@/lib/hooks";
 import type { Movement } from "@/lib/types";
 import { useToast } from "./Toast";
-import { Button, Modal, SectionLabel, SelectField } from "./ui";
+import { Button, ClearableInput, Modal, SectionLabel, SelectField } from "./ui";
 
 /** Crea una transferencia o, si recibe `transfer`, la edita. */
 export function TransferModal({
@@ -122,9 +122,11 @@ function TransferBody({ onClose, transfer }: { onClose: () => void; transfer?: M
           </div>
           <div>
             <SectionLabel>Nota</SectionLabel>
-            <input
+            <ClearableInput
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onValueChange={setNote}
+              clearLabel="Borrar nota"
+              aria-label="Nota"
               placeholder="Opcional"
               className="h-14 w-full rounded-2xl border border-line bg-surface px-4 outline-none placeholder:text-faint focus:border-cream/30"
             />
