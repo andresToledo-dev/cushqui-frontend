@@ -87,7 +87,7 @@ export function CategoryTransactionsScreen({
   const listRef = useRef<HTMLDivElement>(null);
   const scrollKey = JSON.stringify([categoryId, subcategoryId, kind, accountId, period]);
   const { leaveOnLink } = useTabScroll("categoria-movimientos", listRef, scrollKey, data !== undefined);
-  const sel = useTxSelection(scrollKey);
+  const sel = useTxSelection(scrollKey, undefined, txs);
 
   const category = unclassified ? undefined : categoriesById.get(categoryId);
   const categoryName = unclassified ? "Sin clasificar" : (category?.name ?? txs[0]?.categoryName ?? "Categoría");
@@ -112,7 +112,7 @@ export function CategoryTransactionsScreen({
           <div className="border-b border-line pb-3">
             {sel.selected ? (
               <div className="mb-3 py-1.5">
-                <SelectionBar count={sel.selected.size} onCancel={sel.cancel} onDelete={sel.askDelete} />
+                <SelectionBar count={sel.selected.size} onCancel={sel.cancel} onCategory={sel.askCategory} onDelete={sel.askDelete} />
               </div>
             ) : (
               <BackHeader title={<span className="block truncate">{title}</span>} backHref="/" />
